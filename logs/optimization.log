@@ -1,0 +1,10 @@
+[MicroOS Optimization Log Initialized]
+Timestamp: 2026-11-19T00:52:00Z
+Target Size Budget: 50,000,000 bytes (50 MB)
+Budget Allocation:
+- Kernel (vmlinuz x86_64 compressed): <= 12,000,000 bytes (12 MB)
+- Initramfs (cpio.gz / cpio.xz): <= 25,000,000 bytes (25 MB)
+- Bootloader (GRUB EFI + BIOS eltorito): <= 8,000,000 bytes (8 MB)
+- Total ISO Structure & Padding: <= 5,000,000 bytes (5 MB)
+- Maximum Combined Ceiling: 50,000,000 bytes
+Phase 1 Status: Initialized.

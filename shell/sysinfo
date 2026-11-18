@@ -1,0 +1,77 @@
+#!/bin/sh
+# MicroOS System Information Dashboard
+
+set -e
+
+echo "================================================================"
+echo "                   MICROOS SYSTEM DASHBOARD                     "
+echo "               Minimal Linux. Maximum control.                 "
+echo "================================================================"
+
+# OS & Kernel
+kernel_rel=$(uname -r)
+arch=$(uname -m)
+uptime_str=$(uptime 2>/dev/null | sed 's/^[ \t]*//' || cat /proc/uptime | awk '{printf "%d min", $1/60}')
+
+echo "  OS Version:     MicroOS v1.0 (x86_64 Production)"
+echo "  Kernel:         Linux $kernel_rel ($arch)"
+echo "  System Uptime:  $uptime_str"
+
+# CPU
+if [ -f /proc/cpuinfo ]; then
+    cpu_m=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^[ \t]*//')
+    cpu_c=$(grep -c "^processor" /proc/cpuinfo)
+    echo "  Processor:      $cpu_m ($cpu_c cores)"
+fi
+
+# RAM
+if [ -f /proc/meminfo ]; then
+    tot_kb=$(grep -m1 "MemTotal:" /proc/meminfo | awk '{print $2}')
+    free_kb=$(grep -m1 "MemAvailable:" /proc/meminfo 2>/dev/null | awk '{print $2}')
+    [ -z "$free_kb" ] && free_kb=$(grep -m1 "MemFree:" /proc/meminfo | awk '{print $2}')
+    tot_mb=$((tot_kb / 1024))
+    free_mb=$((free_kb / 1024))
+    used_mb=$((tot_mb - free_mb))
+    echo "  Memory (RAM):   $used_mb MB used / $tot_mb MB total ($free_mb MB available)"
+fi
+
+# Active Network
+echo "  Network Links:"
+has_net=0
+for n in /sys/class/net/*; do
+    [ -e "$n" ] || continue
+    iface=$(basename "$n")
+    [ "$iface" = "lo" ] && continue
+    has_net=1
+    state=$(cat "$n/operstate" 2>/dev/null || echo "DOWN")
+    ip_addr=$(ip -4 addr show dev "$iface" 2>/dev/null | grep -o 'inet [^/]*' | cut -d' ' -f2 || true)
+    echo "    - $iface: $state ${ip_addr:+(IP: $ip_addr)}"
+done
+[ "$has_net" -eq 0 ] && echo "    (No network devices found)"
+
+# Storage
+echo "  Storage Devices:"
+has_disk=0
+for d in /sys/block/*; do
+    [ -e "$d" ] || continue
+    dname=$(basename "$d")
+    case "$dname" in loop*|ram*|zram*) continue ;; esac
+    has_disk=1
+    dsize=0
+    [ -f "$d/size" ] && dsize=$(cat "$d/size")
+    dmb=$(( dsize * 512 / 1024 / 1024 ))
+    echo "    - /dev/$dname: ${dmb} MB ($((dmb / 1024)) GB)"
+done
+[ "$has_disk" -eq 0 ] && echo "    (No physical storage drives detected)"
+
+# Persistent storage
+echo "  Persistence:"
+if grep -q '/mnt/ssd' /proc/mounts 2>/dev/null; then
+    echo "    - Status: ACTIVE (Mounted on /mnt/ssd)"
+else
+    echo "    - Status: LIVE MODE (Persistent SSD not mounted)"
+fi
+
+echo "================================================================"
+echo "Type 'help' for command list | 'arcade' for retro games."
+echo ""

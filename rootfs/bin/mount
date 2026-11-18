@@ -1,0 +1,71 @@
+#!/bin/sh
+# MicroOS Safe Mount Utility
+# Safely mounts storage partitions to standardized mount targets with read-only safety fallbacks
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "==================== ACTIVE MOUNTED FILESYSTEMS ===================="
+    grep -E '^/dev/' /proc/mounts || echo "No block devices currently mounted."
+    echo ""
+    echo "Usage: mount <device> [mount_point] [options]"
+    echo "Example: mount /dev/sda1 /mnt/ssd"
+    exit 0
+fi
+
+DEV="$1"
+TARGET="$2"
+
+if [ ! -b "$DEV" ] && [ ! -e "$DEV" ]; then
+    # Maybe device was given as sda1 instead of /dev/sda1
+    if [ -b "/dev/$DEV" ]; then
+        DEV="/dev/$DEV"
+    else
+        echo "[ERROR] Device '$DEV' does not exist as a block device."
+        exit 1
+    fi
+fi
+
+# Default target selection if unspecified
+if [ -z "$TARGET" ]; then
+    case "$DEV" in
+        *nvme*) TARGET="/mnt/ssd" ;;
+        *sd*[0-9]*)
+            # Check if removable
+            parent=$(echo "$DEV" | sed 's/[0-9]*$//; s/\/dev\///')
+            if [ -f "/sys/block/$parent/removable" ] && [ "$(cat "/sys/block/$parent/removable")" -eq 1 ]; then
+                TARGET="/mnt/usb"
+            else
+                TARGET="/mnt/ssd"
+            fi
+            ;;
+        *) TARGET="/mnt/storage" ;;
+    esac
+fi
+
+mkdir -p "$TARGET"
+
+# Check if already mounted
+if grep -q "$TARGET" /proc/mounts; then
+    echo "[WARN] Target '$TARGET' is already mounted:"
+    grep "$TARGET" /proc/mounts
+    exit 0
+fi
+
+echo "Attempting safe mount of $DEV -> $TARGET..."
+
+# Attempt read-write mount first
+if busybox mount "$DEV" "$TARGET" 2>/dev/null || mount "$DEV" "$TARGET" 2>/dev/null; then
+    echo "[SUCCESS] Mounted $DEV on $TARGET (Read-Write)."
+    exit 0
+fi
+
+# If RW fails, fallback to safe Read-Only mount to prevent data corruption
+echo "[NOTICE] RW mount failed or filesystem unclean. Falling back to Safe Read-Only mount..."
+if busybox mount -o ro "$DEV" "$TARGET" 2>/dev/null || mount -o ro "$DEV" "$TARGET" 2>/dev/null; then
+    echo "[SUCCESS] Mounted $DEV on $TARGET in READ-ONLY mode (Data preserved)."
+    exit 0
+else
+    echo "[ERROR] Failed to mount $DEV. Unsupported filesystem or damaged partition."
+    exit 1
+fi

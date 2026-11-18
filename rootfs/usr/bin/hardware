@@ -1,0 +1,282 @@
+#!/bin/sh
+# MicroOS Hardware Autodetection Utility
+# Reads /proc and /sys to detect CPU, RAM, Network, Storage, USB, and PCI hardware
+
+set -e
+
+show_cpu() {
+    echo "==================== CPU HARDWARE ===================="
+    if [ -f /proc/cpuinfo ]; then
+        model=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^[ \t]*//')
+        vendor=$(grep -m1 "vendor_id" /proc/cpuinfo | cut -d: -f2 | sed 's/^[ \t]*//')
+        cores=$(grep -c "^processor" /proc/cpuinfo)
+        mhz=$(grep -m1 "cpu MHz" /proc/cpuinfo | cut -d: -f2 | sed 's/^[ \t]*//')
+        flags=$(grep -m1 "flags" /proc/cpuinfo | cut -d: -f2)
+
+        arch="x86_64"
+        case " $flags " in
+            *" lm "*) arch="x86_64 (64-bit Long Mode supported)" ;;
+            *) arch="x86 (32-bit)" ;;
+        esac
+
+        virt="None"
+        case " $flags " in
+            *" vmx "*) virt="Intel VT-x (Hardware Virtualization supported)" ;;
+            *" svm "*) virt="AMD-V (Hardware Virtualization supported)" ;;
+        esac
+
+        echo "  Processor Model:  $model"
+        echo "  Vendor:           $vendor"
+        echo "  Architecture:     $arch"
+        echo "  CPU Cores:        $cores logical core(s)"
+        [ -n "$mhz" ] && echo "  Current Clock:    $mhz MHz"
+        echo "  Virtualization:   $virt"
+    else
+        echo "  /proc/cpuinfo not accessible."
+    fi
+    echo ""
+}
+
+show_memory() {
+    echo "=================== MEMORY (RAM) ==================="
+    if [ -f /proc/meminfo ]; then
+        total_kb=$(grep -m1 "MemTotal:" /proc/meminfo | awk '{print $2}')
+        free_kb=$(grep -m1 "MemFree:" /proc/meminfo | awk '{print $2}')
+        avail_kb=$(grep -m1 "MemAvailable:" /proc/meminfo | awk '{print $2}')
+        buffers_kb=$(grep -m1 "Buffers:" /proc/meminfo | awk '{print $2}')
+        cached_kb=$(grep -m1 "^Cached:" /proc/meminfo | awk '{print $2}')
+        swap_total_kb=$(grep -m1 "SwapTotal:" /proc/meminfo | awk '{print $2}')
+        swap_free_kb=$(grep -m1 "SwapFree:" /proc/meminfo | awk '{print $2}')
+
+        total_mb=$((total_kb / 1024))
+        free_mb=$((free_kb / 1024))
+        avail_mb=$((avail_kb / 1024))
+        used_mb=$(( (total_kb - avail_kb) / 1024 ))
+
+        echo "  Total Physical RAM:   $total_mb MB ($total_kb kB)"
+        echo "  Used RAM:             $used_mb MB"
+        echo "  Available RAM:        $avail_mb MB"
+        echo "  Free RAM:             $free_mb MB"
+        echo "  Buffers / Cache:      $(( (buffers_kb + cached_kb) / 1024 )) MB"
+        if [ "$swap_total_kb" -gt 0 ]; then
+            echo "  Swap Space:           $((swap_total_kb / 1024)) MB (Free: $((swap_free_kb / 1024)) MB)"
+        else
+            echo "  Swap Space:           None (RAM-only operation)"
+        fi
+    else
+        echo "  /proc/meminfo not accessible."
+    fi
+    echo ""
+}
+
+show_network() {
+    echo "================ NETWORK CONTROLLERS ================"
+    found=0
+    for ifpath in /sys/class/net/*; do
+        [ -e "$ifpath" ] || continue
+        iface=$(basename "$ifpath")
+        [ "$iface" = "lo" ] && continue
+
+        found=1
+        mac="Unknown"
+        [ -f "$ifpath/address" ] && mac=$(cat "$ifpath/address")
+        state="DOWN"
+        [ -f "$ifpath/operstate" ] && state=$(cat "$ifpath/operstate")
+
+        type="Ethernet"
+        if [ -d "$ifpath/wireless" ] || [ -d "$ifpath/phy80211" ]; then
+            type="Wi-Fi (802.11 Wireless)"
+        fi
+
+        driver="Unknown"
+        if [ -e "$ifpath/device/driver" ]; then
+            driver=$(basename "$(readlink -f "$ifpath/device/driver")")
+        fi
+
+        echo "  Interface:    $iface"
+        echo "  Type:         $type"
+        echo "  MAC Address:  $mac"
+        echo "  Link State:   $state"
+        echo "  Kernel Driver:$driver"
+        echo "  ------------------------------------------------"
+    done
+    if [ "$found" -eq 0 ]; then
+        echo "  No physical or virtual network adapters discovered."
+    fi
+    echo ""
+}
+
+show_storage() {
+    echo "================ STORAGE & DISK CONTROLLERS ================"
+    found=0
+    for devpath in /sys/block/*; do
+        [ -e "$devpath" ] || continue
+        dev=$(basename "$devpath")
+        case "$dev" in
+            loop*|ram*|zram*) continue ;;
+        esac
+
+        found=1
+        size_sectors=0
+        [ -f "$devpath/size" ] && size_sectors=$(cat "$devpath/size")
+        size_mb=$(( size_sectors * 512 / 1024 / 1024 ))
+        size_gb=$(( size_mb / 1024 ))
+
+        model="Generic Block Device"
+        [ -f "$devpath/device/model" ] && model=$(cat "$devpath/device/model" | sed 's/^[ \t]*//')
+
+        removable=0
+        [ -f "$devpath/removable" ] && removable=$(cat "$devpath/removable")
+
+        type="SATA/SCSI SSD or HDD"
+        case "$dev" in
+            nvme*) type="NVMe Solid-State Drive" ;;
+            sd*)
+                if [ "$removable" -eq 1 ]; then
+                    type="USB Mass Storage / Removable"
+                else
+                    type="SATA / AHCI Storage Device"
+                fi
+                ;;
+            vd*) type="Virtual Disk (VirtIO)" ;;
+            hd*) type="IDE / PATA Storage Device" ;;
+        esac
+
+        echo "  Device:       /dev/$dev"
+        echo "  Type:         $type"
+        echo "  Model:        $model"
+        if [ "$size_gb" -gt 0 ]; then
+            echo "  Capacity:     $size_gb GB ($size_mb MB)"
+        else
+            echo "  Capacity:     $size_mb MB"
+        fi
+
+        # Enumerate partitions
+        parts=$(ls -d /sys/block/"$dev"/"$dev"* 2>/dev/null || true)
+        if [ -n "$parts" ]; then
+            echo "  Partitions:"
+            for p in $parts; do
+                pname=$(basename "$p")
+                psize_sectors=0
+                [ -f "$p/size" ] && psize_sectors=$(cat "$p/size")
+                psize_mb=$(( psize_sectors * 512 / 1024 / 1024 ))
+                echo "    - /dev/$pname (${psize_mb} MB)"
+            done
+        else
+            echo "  Partitions:   (None detected)"
+        fi
+        echo "  ------------------------------------------------"
+    done
+    if [ "$found" -eq 0 ]; then
+        echo "  No physical storage devices found."
+    fi
+    echo ""
+}
+
+show_usb() {
+    echo "==================== USB CONTROLLERS & DEVICES ===================="
+    found=0
+    if [ -d /sys/bus/usb/devices ]; then
+        for udev in /sys/bus/usb/devices/*; do
+            [ -e "$udev" ] || continue
+            # Only root devices or direct peripherals (has idVendor)
+            if [ -f "$udev/idVendor" ] && [ -f "$udev/idProduct" ]; then
+                found=1
+                vid=$(cat "$udev/idVendor")
+                pid=$(cat "$udev/idProduct")
+                prod="USB Device"
+                [ -f "$udev/product" ] && prod=$(cat "$udev/product")
+                mfg="Generic"
+                [ -f "$udev/manufacturer" ] && mfg=$(cat "$udev/manufacturer")
+                bus=$(basename "$udev")
+                echo "  Device ID:    ${vid}:${pid} ($bus)"
+                echo "  Product:      $prod"
+                echo "  Manufacturer: $mfg"
+                echo "  ------------------------------------------------"
+            fi
+        done
+    fi
+    if [ "$found" -eq 0 ]; then
+        echo "  No USB peripherals or root hubs detected."
+    fi
+    echo ""
+}
+
+show_pci() {
+    echo "==================== PCI / PCIE DEVICES ===================="
+    found=0
+    if [ -d /sys/bus/pci/devices ]; then
+        for pdev in /sys/bus/pci/devices/*; do
+            [ -e "$pdev" ] || continue
+            found=1
+            slot=$(basename "$pdev")
+            vendor="0000"
+            device="0000"
+            [ -f "$pdev/vendor" ] && vendor=$(cat "$pdev/vendor" | sed 's/0x//')
+            [ -f "$pdev/device" ] && device=$(cat "$pdev/device" | sed 's/0x//')
+            driver="None"
+            if [ -e "$pdev/driver" ]; then
+                driver=$(basename "$(readlink -f "$pdev/driver")")
+            fi
+            class_id=""
+            [ -f "$pdev/class" ] && class_id=$(cat "$pdev/class")
+
+            echo "  PCI Slot:     $slot"
+            echo "  Vendor/Device:${vendor}:${device}"
+            echo "  Class:        $class_id"
+            echo "  Active Driver:$driver"
+            echo "  ------------------------------------------------"
+        done
+    fi
+    if [ "$found" -eq 0 ]; then
+        echo "  No PCI bus devices detected."
+    fi
+    echo ""
+}
+
+case "$1" in
+    cpu)
+        show_cpu
+        ;;
+    memory|mem)
+        show_memory
+        ;;
+    network|net)
+        show_network
+        ;;
+    storage|disk|disks)
+        show_storage
+        ;;
+    usb)
+        show_usb
+        ;;
+    pci)
+        show_pci
+        ;;
+    all|"")
+        echo "############################################################"
+        echo "#          MICROOS AUTOMATIC HARDWARE DISCOVERY            #"
+        echo "############################################################"
+        echo ""
+        show_cpu
+        show_memory
+        show_storage
+        show_network
+        show_usb
+        ;;
+    help|--help|-h)
+        echo "Usage: hardware [subcommand]"
+        echo "Subcommands:"
+        echo "  hardware          - Complete system hardware inspection report"
+        echo "  hardware cpu      - Processor architecture, model, cores, flags"
+        echo "  hardware memory   - Physical RAM, cache, swap consumption"
+        echo "  hardware network  - Network interfaces, MACs, drivers, state"
+        echo "  hardware storage  - NVMe, SATA, USB block devices & partitions"
+        echo "  hardware usb      - USB root hubs and connected peripherals"
+        echo "  hardware pci      - PCI/PCIe bus topology and attached drivers"
+        ;;
+    *)
+        echo "Unknown hardware subcommand: '$1'. Type 'hardware help' for options."
+        exit 1
+        ;;
+esac

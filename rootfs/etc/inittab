@@ -1,0 +1,6 @@
+# /etc/inittab for MicroOS BusyBox Init
+::sysinit:/etc/init.d/rcS
+::ctrlaltdel:/sbin/reboot
+::shutdown:/etc/init.d/rcK
+tty1::respawn:/bin/sh -l
+console::respawn:/bin/sh -l

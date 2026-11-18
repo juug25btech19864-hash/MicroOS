@@ -1,0 +1,140 @@
+#!/bin/sh
+# MicroOS Storage and SSD Management Utility
+# Non-destructive storage discovery, inspection, and partition management
+
+set -e
+
+list_disks() {
+    echo "==================== MICROOS DISK LIST ===================="
+    printf "%-12s %-10s %-8s %-25s %s\n" "DEVICE" "TYPE" "SIZE" "MODEL" "TRAN"
+    echo "----------------------------------------------------------------------"
+
+    for devpath in /sys/block/*; do
+        [ -e "$devpath" ] || continue
+        dev=$(basename "$devpath")
+        case "$dev" in
+            loop*|ram*|zram*) continue ;;
+        esac
+
+        size_sectors=0
+        [ -f "$devpath/size" ] && size_sectors=$(cat "$devpath/size")
+        size_mb=$(( size_sectors * 512 / 1024 / 1024 ))
+        if [ "$size_mb" -ge 1024 ]; then
+            size_str="$((size_mb / 1024)) GB"
+        else
+            size_str="${size_mb} MB"
+        fi
+
+        model="Generic"
+        [ -f "$devpath/device/model" ] && model=$(cat "$devpath/device/model" | tr -d '\n' | sed 's/^[ \t]*//')
+
+        removable=0
+        [ -f "$devpath/removable" ] && removable=$(cat "$devpath/removable")
+
+        type="SATA"
+        tran="sata"
+        case "$dev" in
+            nvme*)
+                type="NVMe SSD"
+                tran="pcie"
+                ;;
+            sd*)
+                if [ "$removable" -eq 1 ]; then
+                    type="USB Drive"
+                    tran="usb"
+                else
+                    type="SATA SSD/HDD"
+                    tran="sata"
+                fi
+                ;;
+            vd*)
+                type="VirtIO"
+                tran="virtio"
+                ;;
+            hd*)
+                type="IDE"
+                tran="ata"
+                ;;
+        esac
+
+        printf "%-12s %-10s %-8s %-25s %s\n" "/dev/$dev" "$type" "$size_str" "$model" "$tran"
+    done
+    echo ""
+}
+
+info_disks() {
+    echo "==================== STORAGE DETAILED INFO ===================="
+    for devpath in /sys/block/*; do
+        [ -e "$devpath" ] || continue
+        dev=$(basename "$devpath")
+        case "$dev" in
+            loop*|ram*|zram*) continue ;;
+        esac
+
+        size_sectors=0
+        [ -f "$devpath/size" ] && size_sectors=$(cat "$devpath/size")
+        size_mb=$(( size_sectors * 512 / 1024 / 1024 ))
+
+        model="Generic Disk"
+        [ -f "$devpath/device/model" ] && model=$(cat "$devpath/device/model" | tr -d '\n' | sed 's/^[ \t]*//')
+
+        echo "Drive: /dev/$dev"
+        echo "  Model:       $model"
+        echo "  Capacity:    $size_mb MB ($((size_mb / 1024)) GB)"
+        
+        # Check mount state
+        mounts=$(grep "^/dev/$dev" /proc/mounts || true)
+        if [ -n "$mounts" ]; then
+            echo "  Active Mounts:"
+            echo "$mounts" | awk '{print "    - Mounted on: " $2 " (Type: " $3 ", Flags: " $4 ")"}'
+        else
+            echo "  Active Mounts: None (Not currently mounted)"
+        fi
+
+        # Partitions
+        parts=$(ls -d /sys/block/"$dev"/"$dev"* 2>/dev/null || true)
+        if [ -n "$parts" ]; then
+            echo "  Partitions & Filesystems:"
+            for p in $parts; do
+                pname=$(basename "$p")
+                psize=0
+                [ -f "$p/size" ] && psize=$(cat "$p/size")
+                pmb=$(( psize * 512 / 1024 / 1024 ))
+
+                # Check filesystem type if blkid is available
+                fstype="Unknown"
+                label=""
+                if command -v blkid >/dev/null 2>&1; then
+                    binfo=$(blkid "/dev/$pname" 2>/dev/null || true)
+                    if [ -n "$binfo" ]; then
+                        fstype=$(echo "$binfo" | grep -o 'TYPE="[^"]*"' | cut -d'"' -f2 || echo "Unknown")
+                        label=$(echo "$binfo" | grep -o 'LABEL="[^"]*"' | cut -d'"' -f2 || true)
+                    fi
+                fi
+                echo "    * /dev/$pname: ${pmb} MB | FS: ${fstype} ${label:+(Label: $label)}"
+            done
+        fi
+        echo "---------------------------------------------------------------"
+    done
+    echo ""
+}
+
+case "$1" in
+    list|"")
+        list_disks
+        ;;
+    info)
+        info_disks
+        ;;
+    help|--help|-h)
+        echo "Usage: disks [command]"
+        echo "Commands:"
+        echo "  disks        - List all attached storage devices and capacities"
+        echo "  disks list   - Same as 'disks'"
+        echo "  disks info   - Detailed partition, filesystem, and mount status"
+        ;;
+    *)
+        echo "Unknown disks command: '$1'. Type 'disks help' for usage."
+        exit 1
+        ;;
+esac

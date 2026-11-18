@@ -1,0 +1,29 @@
+#!/bin/sh
+# MicroOS Safe Unmount Utility
+# Flushes write buffers and cleanly unmounts storage partitions
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: unmount <mount_point_or_device>"
+    echo "Example: unmount /mnt/ssd"
+    echo "         unmount /dev/sda1"
+    exit 1
+fi
+
+TARGET="$1"
+
+echo "Syncing filesystem caches..."
+sync
+
+if busybox umount "$TARGET" 2>/dev/null || umount "$TARGET" 2>/dev/null; then
+    echo "[SUCCESS] Unmounted '$TARGET' safely."
+else
+    echo "[WARN] Regular unmount failed (busy?). Attempting lazy unmount..."
+    if busybox umount -l "$TARGET" 2>/dev/null || umount -l "$TARGET" 2>/dev/null; then
+        echo "[SUCCESS] Lazy unmounted '$TARGET'."
+    else
+        echo "[ERROR] Could not unmount '$TARGET'. Ensure no processes are accessing it."
+        exit 1
+    fi
+fi

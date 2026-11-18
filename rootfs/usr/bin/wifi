@@ -1,0 +1,196 @@
+#!/bin/sh
+# MicroOS Wi-Fi Management Utility
+# Native wireless networking controller using iwd and Linux wireless subsystem
+
+set -e
+
+IWD_DIR="/var/lib/iwd"
+STATE_FILE="/run/wifi.state"
+
+get_wifi_interface() {
+    # Check for 802.11 wireless interface
+    for ifpath in /sys/class/net/*; do
+        [ -e "$ifpath" ] || continue
+        if [ -d "$ifpath/wireless" ] || [ -d "$ifpath/phy80211" ]; then
+            basename "$ifpath"
+            return 0
+        fi
+    done
+    return 1
+}
+
+ensure_iwd() {
+    mkdir -p "$IWD_DIR"
+    chmod 700 "$IWD_DIR"
+
+    if ! pgrep -x iwd >/dev/null 2>&1; then
+        if command -v iwd >/dev/null 2>&1; then
+            iwd -d >/tmp/iwd.log 2>&1 &
+            sleep 1
+        fi
+    fi
+}
+
+wifi_status() {
+    echo "==================== MICROOS NETWORK STATUS ===================="
+    wlan_if=$(get_wifi_interface || true)
+
+    if [ -n "$wlan_if" ]; then
+        mac=$(cat "/sys/class/net/$wlan_if/address" 2>/dev/null || echo "Unknown")
+        state=$(cat "/sys/class/net/$wlan_if/operstate" 2>/dev/null || echo "DOWN")
+        driver=$(basename "$(readlink -f "/sys/class/net/$wlan_if/device/driver" 2>/dev/null || echo "Unknown")")
+
+        echo "  Wi-Fi Adapter:      $wlan_if (Physical 802.11 Radio Detected)"
+        echo "  Driver:             $driver"
+        echo "  MAC Address:        $mac"
+        echo "  Link State:         $state"
+
+        # Check IP address
+        ip_addr=$(ip -4 addr show dev "$wlan_if" 2>/dev/null | grep -o 'inet [^/]*' | cut -d' ' -f2 || true)
+        [ -n "$ip_addr" ] && echo "  Assigned IP:        $ip_addr"
+
+        # Check current SSID via iwctl or state file
+        if [ -f "$STATE_FILE" ]; then
+            echo "  Connected Network:  $(cat "$STATE_FILE")"
+        fi
+    else
+        echo "  Wi-Fi Adapter:      None detected."
+        echo "  ------------------------------------------------------------"
+        echo "  [INFO] VirtualBox & Virtual Environments:"
+        echo "  VirtualBox does not emulate 802.11 Wi-Fi radios; it provides"
+        echo "  an emulated wired Ethernet adapter (Intel PRO/1000 / PCnet)."
+        echo "  Native Wi-Fi hardware will activate automatically on physical laptops."
+    fi
+
+    echo ""
+    echo "  Ethernet Interfaces:"
+    found_eth=0
+    for ethpath in /sys/class/net/*; do
+        [ -e "$ethpath" ] || continue
+        eif=$(basename "$ethpath")
+        [ "$eif" = "lo" ] && continue
+        [ "$eif" = "$wlan_if" ] && continue
+
+        found_eth=1
+        emac=$(cat "$ethpath/address" 2>/dev/null || echo "Unknown")
+        estate=$(cat "$ethpath/operstate" 2>/dev/null || echo "DOWN")
+        edriver=$(basename "$(readlink -f "$ethpath/device/driver" 2>/dev/null || echo "Unknown")")
+        eip=$(ip -4 addr show dev "$eif" 2>/dev/null | grep -o 'inet [^/]*' | cut -d' ' -f2 || true)
+
+        echo "    * $eif: State=$estate | MAC=$emac | Driver=$edriver ${eip:+(IP: $eip)}"
+    done
+    [ "$found_eth" -eq 0 ] && echo "    (No wired Ethernet interfaces)"
+    echo ""
+}
+
+wifi_scan() {
+    wlan_if=$(get_wifi_interface || true)
+    if [ -z "$wlan_if" ]; then
+        echo "[ERROR] No physical Wi-Fi radio detected on this machine."
+        echo "Notice: In Oracle VirtualBox, use the emulated Ethernet adapter."
+        echo "Physical Wi-Fi requires booting on a native laptop."
+        return 1
+    fi
+
+    echo "Scanning for available wireless networks on $wlan_if..."
+    ensure_iwd
+
+    if command -v iwctl >/dev/null 2>&1; then
+        iwctl station "$wlan_if" scan 2>/dev/null || true
+        sleep 1
+        echo "Available Wi-Fi Networks (SSIDs):"
+        iwctl station "$wlan_if" get-networks
+    else
+        echo "[NOTICE] iwctl client not present; parsing nl80211 scan..."
+        iw dev "$wlan_if" scan 2>/dev/null | grep -E 'SSID:|signal:' || true
+    fi
+}
+
+wifi_connect() {
+    ssid="$1"
+    pass="$2"
+
+    if [ -z "$ssid" ]; then
+        echo "Usage: wifi connect <SSID> [password]"
+        return 1
+    fi
+
+    wlan_if=$(get_wifi_interface || true)
+    if [ -z "$wlan_if" ]; then
+        echo "[ERROR] Cannot connect: No physical Wi-Fi adapter detected."
+        return 1
+    fi
+
+    ensure_iwd
+    echo "Connecting to network '$ssid' on interface $wlan_if..."
+
+    # Configure iwd profile with strict 600 permissions
+    prof="$IWD_DIR/${ssid}.psk"
+    if [ -n "$pass" ]; then
+        # Create secure profile without logging password
+        (
+            umask 077
+            cat <<EOF > "$prof"
+[Security]
+Passphrase=$pass
+EOF
+        )
+    fi
+
+    if command -v iwctl >/dev/null 2>&1; then
+        if [ -n "$pass" ]; then
+            iwctl --passphrase "$pass" station "$wlan_if" connect "$ssid"
+        else
+            iwctl station "$wlan_if" connect "$ssid"
+        fi
+    fi
+
+    # Trigger DHCP via BusyBox udhcpc
+    echo "Requesting DHCP lease..."
+    if command -v udhcpc >/dev/null 2>&1; then
+        udhcpc -i "$wlan_if" -q -n
+    fi
+
+    echo "$ssid" > "$STATE_FILE"
+    echo "[SUCCESS] Connected to '$ssid'."
+}
+
+wifi_disconnect() {
+    wlan_if=$(get_wifi_interface || true)
+    if [ -n "$wlan_if" ]; then
+        if command -v iwctl >/dev/null 2>&1; then
+            iwctl station "$wlan_if" disconnect || true
+        fi
+        ip link set "$wlan_if" down || true
+    fi
+    rm -f "$STATE_FILE"
+    echo "[SUCCESS] Disconnected from Wi-Fi."
+}
+
+case "$1" in
+    status|"")
+        wifi_status
+        ;;
+    scan)
+        wifi_scan
+        ;;
+    connect)
+        wifi_connect "$2" "$3"
+        ;;
+    disconnect)
+        wifi_disconnect
+        ;;
+    help|--help|-h)
+        echo "Usage: wifi <command>"
+        echo "Commands:"
+        echo "  wifi             - Display Wi-Fi and Ethernet network adapter status"
+        echo "  wifi status      - Same as 'wifi'"
+        echo "  wifi scan        - Scan for nearby 802.11 access points (SSIDs)"
+        echo "  wifi connect     - Connect to Wi-Fi: wifi connect <SSID> [password]"
+        echo "  wifi disconnect  - Disconnect from active wireless network"
+        ;;
+    *)
+        echo "Unknown wifi command: '$1'. Type 'wifi help' for syntax."
+        exit 1
+        ;;
+esac

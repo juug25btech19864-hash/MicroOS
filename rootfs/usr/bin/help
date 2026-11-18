@@ -1,0 +1,58 @@
+#!/bin/sh
+# MicroOS Built-in Help System
+
+cat <<'EOF'
+================================================================================
+                           MICROOS COMMAND REFERENCE
+                         Minimal Linux. Maximum control.
+================================================================================
+
+SYSTEM COMMANDS:
+  help              - Display this command reference guide
+  clear             - Clear the terminal console display
+  sysinfo           - Display comprehensive system overview & resource metrics
+  reboot            - Safely flush disk buffers and reboot system
+  poweroff          - Safely unmount filesystems and shut down hardware
+
+HARDWARE & INSPECTION:
+  hardware          - Auto-detect and report CPU, RAM, PCI, USB, Storage
+  hardware cpu      - Detailed CPU architecture, clock, features
+  hardware memory   - Physical RAM breakdown, free memory, cache
+  hardware network  - Network controller types, MACs, drivers, link state
+  hardware storage  - Storage controllers (NVMe, SATA, USB) and partitions
+  hardware usb      - USB root hubs and plugged peripherals
+  hardware pci      - PCI and PCIe bus devices and attached drivers
+
+STORAGE MANAGEMENT:
+  disks             - Scan and list all attached storage drives & capacities
+  disks info        - Inspect partition tables, filesystem types, mount points
+  mount <dev> [dir] - Safely mount partition (with Read-Only corruption fallback)
+  unmount <dir|dev> - Flush write caches and cleanly unmount partition
+
+NETWORKING & WI-FI:
+  wifi              - Display Wi-Fi and Ethernet network interface status
+  wifi scan         - Scan for 802.11 wireless networks (physical laptops)
+  wifi connect      - Connect to Wi-Fi: wifi connect <SSID> [password]
+  wifi disconnect   - Terminate active wireless network association
+
+PACKAGE MANAGEMENT (PERSISTENT USERSPACE):
+  apt status        - Check persistent storage and package database status
+  apt init          - Initialize persistent package directory structure
+  apt update        - Synchronize package lists from Debian repositories
+  apt search <pkg>  - Search Debian package database
+  apt install <pkg> - Install persistent packages (requires mounted SSD)
+  apt remove <pkg>  - Uninstall packages from persistent environment
+
+MICRO ARCADE (TERMINAL GAMES):
+  arcade            - Open the interactive Micro Arcade launcher
+  snake             - Classic Snake game (WASD / Arrows)
+  tetris            - Falling blocks puzzle (A/D/W/S, Space)
+  pong              - Two-player / Single-player vs AI Pong
+  mines             - Terminal Minesweeper with cursor navigation
+  2048              - 2048 sliding number puzzle
+  guess             - Interactive number guessing with difficulty modes
+  tictactoe         - Tic-Tac-Toe vs Minimax AI or 2-player
+  spaceinvaders     - Real-time ASCII space invader shooter
+
+================================================================================
+EOF

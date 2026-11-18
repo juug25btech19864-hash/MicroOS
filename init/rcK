@@ -1,0 +1,8 @@
+#!/bin/sh
+# MicroOS System Shutdown / Reboot (rcK)
+echo "[rcK] Shutting down MicroOS..."
+echo "[rcK] Flushing storage caches..."
+sync
+echo "[rcK] Unmounting filesystems..."
+umount -a -r 2>/dev/null || true
+echo "[rcK] Terminated."

@@ -1,0 +1,6 @@
+#!/bin/sh
+# MicroOS System Startup (rcS)
+echo "[rcS] Initializing MicroOS environment..."
+# Seed random generator
+[ -f /dev/urandom ] && dd if=/dev/urandom of=/dev/null count=1 2>/dev/null || true
+echo "[rcS] System ready."

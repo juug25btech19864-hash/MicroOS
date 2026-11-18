@@ -1,0 +1,89 @@
+#!/bin/sh
+# MicroOS PID 1 System Initializer & Hardware Manager
+# Orchestrates early userspace, virtual filesystems, device discovery, and persistence
+
+# Catch fatal errors with emergency rescue shell
+trap 'echo "[EMERGENCY] Early init failure! Spawning emergency shell..."; /bin/sh' ERR
+
+# Ensure basic PATH
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games
+
+# 1. Mount Virtual Filesystems
+/bin/mount -t proc none /proc 2>/dev/null || mount -t proc none /proc
+/bin/mount -t sysfs none /sys 2>/dev/null || mount -t sysfs none /sys
+/bin/mount -t devtmpfs none /dev 2>/dev/null || mount -t devtmpfs none /dev
+mkdir -p /dev/pts /dev/shm /run /tmp /mnt/ssd /mnt/usb /mnt/storage /var/log /var/run /var/games /var/lib/iwd
+/bin/mount -t devpts none /dev/pts -o mode=0620,gid=5 2>/dev/null || true
+/bin/mount -t tmpfs none /run -o mode=0755,nodev,nosuid 2>/dev/null || true
+/bin/mount -t tmpfs none /tmp -o mode=1777 2>/dev/null || true
+
+# 2. Populate Device Nodes via mdev/udev
+if [ -x /sbin/mdev ]; then
+    echo /sbin/mdev > /proc/sys/kernel/hotplug 2>/dev/null || true
+    /sbin/mdev -s 2>/dev/null || true
+fi
+
+# 3. Network Loopback Setup
+if [ -x /sbin/ip ]; then
+    /sbin/ip link set lo up 2>/dev/null || true
+elif [ -x /sbin/ifconfig ]; then
+    /sbin/ifconfig lo 127.0.0.1 up 2>/dev/null || true
+fi
+
+# 4. Hostname
+echo "microos" > /etc/hostname 2>/dev/null || true
+hostname microos 2>/dev/null || true
+
+# 5. Load Kernel Modules if present
+if [ -d /lib/modules ]; then
+    modprobe -a ahci nvme e1000 e1000e r8169 usb_storage xhci_hcd 2>/dev/null || true
+fi
+
+# 6. Automatic Persistent Storage Scanning
+# Search for partition with label MICROOS_PERSIST or MICROOS_DATA
+for part in /dev/sd* /dev/nvme*n*p* /dev/vd*; do
+    [ -b "$part" ] || continue
+    # Skip whole disks
+    case "$part" in
+        /dev/sd[a-z]|/dev/nvme*n[0-9]|/dev/vd[a-z]) continue ;;
+    esac
+
+    # Probe label
+    if command -v blkid >/dev/null 2>&1; then
+        label=$(blkid "$part" 2>/dev/null | grep -o 'LABEL="[^"]*"' | cut -d'"' -f2 || true)
+        if [ "$label" = "MICROOS_PERSIST" ] || [ "$label" = "MICROOS_DATA" ]; then
+            echo "[INIT] Found persistent storage partition: $part ($label)"
+            mount "$part" /mnt/ssd 2>/dev/null || true
+            break
+        fi
+    fi
+done
+
+# 7. Print MicroOS Boot Banner
+printf "\033[H\033[2J"
+cat <<'EOF'
+  __  __ _               ___  ____  
+ |  \/  (_)___ _ __ ___ / _ \/ ___| 
+ | |\/| | / __| '__/ _ \ | | \___ \ 
+ | |  | | \__ \ | | (_) | |_| |___) |
+ |_|  |_|_|___/_|  \___/ \___/|____/ 
+
+MICROOS
+Minimal Linux. Maximum control.
+
+Boot sequence completed.
+Firmware -> GRUB -> Linux Kernel -> Initramfs -> /init -> MicroOS shell.
+
+EOF
+
+# 8. Start BusyBox Init or direct interactive shell
+if [ -f /etc/inittab ] && [ -x /sbin/init ]; then
+    exec /sbin/init
+else
+    # Direct fallback interactive shell
+    while true; do
+        /bin/sh -l
+        echo "MicroOS shell exited. Respawning in 1 second..."
+        sleep 1
+    done
+fi

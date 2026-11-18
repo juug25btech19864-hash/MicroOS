@@ -1,0 +1,153 @@
+#!/bin/sh
+# MicroOS Debian-Compatible APT & DPKG Subsystem
+# Provides persistent package management without bloating base live ISO
+
+set -e
+
+PERSIST_DIR="${MICROOS_PERSIST:-/mnt/ssd}"
+APT_ROOT="$PERSIST_DIR/debian-root"
+APT_STATE="$APT_ROOT/var/lib/apt"
+DPKG_STATE="$APT_ROOT/var/lib/dpkg"
+APT_CACHE="$APT_ROOT/var/cache/apt/archives"
+APT_CONFIG="$APT_ROOT/etc/apt"
+
+check_persistence() {
+    if ! grep -q "$PERSIST_DIR" /proc/mounts 2>/dev/null && [ ! -d "$PERSIST_DIR/debian-root" ]; then
+        echo "=================================================================="
+        echo "                 MICROOS APT PACKAGE MANAGER                      "
+        echo "=================================================================="
+        echo "[NOTICE] MicroOS runs an ultra-lightweight (<50MB) immutable core."
+        echo "APT package storage, caching, and installation require a persistent"
+        echo "storage drive (SATA SSD, NVMe SSD, or USB storage) mounted at $PERSIST_DIR."
+        echo ""
+        echo "To enable persistent Debian APT packages:"
+        echo "  1. Identify your storage partition:  disks"
+        echo "  2. Mount partition safely:           mount /dev/sda1 $PERSIST_DIR"
+        echo "  3. Initialize persistent APT space:  apt init"
+        echo "  4. Update and install software:      apt update && apt install <pkg>"
+        echo "=================================================================="
+        return 1
+    fi
+    return 0
+}
+
+init_apt_environment() {
+    target="${1:-$PERSIST_DIR}"
+    echo "Initializing persistent Debian APT environment on $target..."
+    mkdir -p "$target/debian-root/etc/apt/sources.list.d"
+    mkdir -p "$target/debian-root/etc/apt/preferences.d"
+    mkdir -p "$target/debian-root/var/lib/apt/lists/partial"
+    mkdir -p "$target/debian-root/var/lib/dpkg/updates"
+    mkdir -p "$target/debian-root/var/lib/dpkg/info"
+    mkdir -p "$target/debian-root/var/cache/apt/archives/partial"
+    mkdir -p "$target/debian-root/var/log/apt"
+    mkdir -p "$target/debian-root/usr/bin"
+    mkdir -p "$target/debian-root/usr/lib"
+
+    # Initialize empty dpkg status file if not exists
+    if [ ! -f "$target/debian-root/var/lib/dpkg/status" ]; then
+        touch "$target/debian-root/var/lib/dpkg/status"
+    fi
+    if [ ! -f "$target/debian-root/var/lib/dpkg/available" ]; then
+        touch "$target/debian-root/var/lib/dpkg/available"
+    fi
+
+    # Configure Debian / Ubuntu compatible repository
+    cat <<'EOF' > "$target/debian-root/etc/apt/sources.list"
+# MicroOS Official Debian-Compatible Repositories
+deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security bookworm-security main contrib non-free
+deb http://deb.debian.org/debian bookworm-updates main contrib non-free
+EOF
+
+    echo "[SUCCESS] Persistent APT environment initialized at $target/debian-root."
+    echo "Ready for 'apt update'."
+}
+
+run_apt_cmd() {
+    cmd="$1"
+    shift
+
+    APT_OPTS="-o Dir=$APT_ROOT \
+              -o Dir::State=$APT_ROOT/var/lib/apt \
+              -o Dir::State::status=$APT_ROOT/var/lib/dpkg/status \
+              -o Dir::Cache=$APT_ROOT/var/cache/apt \
+              -o Dir::Etc=$APT_ROOT/etc/apt \
+              -o Dir::Etc::sourcelist=$APT_ROOT/etc/apt/sources.list \
+              -o Dir::Etc::sourceparts=$APT_ROOT/etc/apt/sources.list.d \
+              -o Dir::Log=$APT_ROOT/var/log/apt"
+
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get $APT_OPTS "$cmd" "$@"
+    elif command -v apt >/dev/null 2>&1; then
+        apt $APT_OPTS "$cmd" "$@"
+    else
+        echo "[ERROR] Host APT binary not present in RAM root. Re-mount persistent root."
+        return 1
+    fi
+}
+
+case "$1" in
+    init)
+        init_apt_environment "$2"
+        ;;
+    status)
+        echo "=== MicroOS APT Subsystem Status ==="
+        echo "Persistent Target: $PERSIST_DIR"
+        if grep -q "$PERSIST_DIR" /proc/mounts 2>/dev/null || [ -d "$PERSIST_DIR/debian-root" ]; then
+            echo "Status: READY (Persistent storage detected)"
+            installed=$(grep -c "^Package:" "$DPKG_STATE/status" 2>/dev/null || echo "0")
+            echo "Installed Debian Packages: $installed"
+        else
+            echo "Status: INACTIVE (Persistent storage not mounted)"
+        fi
+        ;;
+    update)
+        check_persistence || exit 1
+        echo "Updating package lists from Debian repositories..."
+        run_apt_cmd update "$@"
+        ;;
+    install)
+        check_persistence || exit 1
+        shift
+        echo "Installing Debian packages: $*..."
+        run_apt_cmd install "$@"
+        ;;
+    remove|purge)
+        check_persistence || exit 1
+        cmd="$1"
+        shift
+        run_apt_cmd "$cmd" "$@"
+        ;;
+    search)
+        check_persistence || exit 1
+        shift
+        if command -v apt-cache >/dev/null 2>&1; then
+            apt-cache -o Dir::Cache="$APT_ROOT/var/cache/apt" -o Dir::State="$APT_ROOT/var/lib/apt" search "$@"
+        else
+            echo "Searching locally cached packages..."
+            grep -i "$1" "$APT_ROOT/var/lib/dpkg/status" 2>/dev/null || true
+        fi
+        ;;
+    upgrade)
+        check_persistence || exit 1
+        shift
+        run_apt_cmd upgrade "$@"
+        ;;
+    help|--help|-h|"")
+        echo "Usage: apt <command> [options] [packages]"
+        echo ""
+        echo "MicroOS Debian APT Management Commands:"
+        echo "  apt status         - Check persistent storage and package database status"
+        echo "  apt init [dir]     - Initialize persistent package directory structure"
+        echo "  apt update         - Fetch latest package lists from Debian mirror"
+        echo "  apt search <pkg>   - Search available packages"
+        echo "  apt install <pkg>  - Download, unpack, and configure Debian packages"
+        echo "  apt remove <pkg>   - Safely remove an installed package"
+        echo "  apt upgrade        - Upgrade all installed packages to latest versions"
+        ;;
+    *)
+        echo "Unknown apt command: '$1'. Type 'apt help' for usage."
+        exit 1
+        ;;
+esac

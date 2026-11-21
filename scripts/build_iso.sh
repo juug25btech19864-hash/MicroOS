@@ -28,7 +28,6 @@ cp "$PROJ_DIR/boot/grub/grub.cfg" "$STAGING_DIR/boot/grub/grub.cfg"
 # 2. Generate Bootable Hybrid ISO with grub-mkrescue & xorriso
 echo "  [XORRISO] Invoking grub-mkrescue for dual BIOS/UEFI boot..."
 grub-mkrescue -o "$ISO_OUT" "$STAGING_DIR" \
-    --install-modules="linux normal part_msdos part_gpt ext2 fat iso9660 test gfxterm font" \
     --locales="" \
     --fonts=""
 

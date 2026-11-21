@@ -1,0 +1,34 @@
+[H[2J  __  __ _               ___  ____  
+ |  \/  (_)___ _ __ ___ / _ \/ ___| 
+ | |\/| | / __| '__/ _ \ | | \___ \ 
+ | |  | | \__ \ | | (_) | |_| |___) |
+ |_|  |_|_|___/_|  \___/ \___/|____/ 
+
+MICROOS
+Minimal Linux. Maximum control.
+
+Boot sequence completed.
+Firmware -> GRUB -> Linux Kernel -> Initramfs -> /init -> MicroOS shell.
+
+[rcS] Initializing MicroOS environment...
+[rcS] System ready.
+
+
+BusyBox v1.37.0 (Ubuntu 1:1.37.0-7ubuntu1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+/bin/sh: can't access tty; job control turned off
+[H[2J  __  __ _               ___  ____  
+ |  \/  (_)___ _ __ ___ / _ \/ ___| 
+ | |\/| | / __| '__/ _ \ | | \___ \ 
+ | |  | | \__ \ | | (_) | |_| |___) |
+ |_|  |_|_|___/_|  \___/ \___/|____/ 
+
+MICROOS v1.0
+Minimal Linux. Maximum control.
+
+Welcome to MicroOS!
+Type 'help' for available commands, 'sysinfo' for diagnostics,
+or 'arcade' to launch retro terminal games.
+
+[1;32mmicro@micro[0m:[1;34m/[0m# [6n

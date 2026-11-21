@@ -2,20 +2,19 @@
 # MicroOS PID 1 System Initializer & Hardware Manager
 # Orchestrates early userspace, virtual filesystems, device discovery, and persistence
 
-# Catch fatal errors with emergency rescue shell
-trap 'echo "[EMERGENCY] Early init failure! Spawning emergency shell..."; /bin/sh' ERR
+set +e
 
 # Ensure basic PATH
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games
 
 # 1. Mount Virtual Filesystems
-/bin/mount -t proc none /proc 2>/dev/null || mount -t proc none /proc
-/bin/mount -t sysfs none /sys 2>/dev/null || mount -t sysfs none /sys
-/bin/mount -t devtmpfs none /dev 2>/dev/null || mount -t devtmpfs none /dev
+/bin/busybox mount -t proc none /proc 2>/dev/null || mount -t proc none /proc
+/bin/busybox mount -t sysfs none /sys 2>/dev/null || mount -t sysfs none /sys
+/bin/busybox mount -t devtmpfs none /dev 2>/dev/null || mount -t devtmpfs none /dev
 mkdir -p /dev/pts /dev/shm /run /tmp /mnt/ssd /mnt/usb /mnt/storage /var/log /var/run /var/games /var/lib/iwd
-/bin/mount -t devpts none /dev/pts -o mode=0620,gid=5 2>/dev/null || true
-/bin/mount -t tmpfs none /run -o mode=0755,nodev,nosuid 2>/dev/null || true
-/bin/mount -t tmpfs none /tmp -o mode=1777 2>/dev/null || true
+/bin/busybox mount -t devpts none /dev/pts -o mode=0620,gid=5 2>/dev/null || true
+/bin/busybox mount -t tmpfs none /run -o mode=0755,nodev,nosuid 2>/dev/null || true
+/bin/busybox mount -t tmpfs none /tmp -o mode=1777 2>/dev/null || true
 
 # 2. Populate Device Nodes via mdev/udev
 if [ -x /sbin/mdev ]; then

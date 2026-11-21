@@ -2,7 +2,12 @@
 # MicroOS Safe Mount Utility
 # Safely mounts storage partitions to standardized mount targets with read-only safety fallbacks
 
-set -e
+# Pass-through standard mount flags and virtual filesystem mounts to BusyBox mount
+case "$1" in
+    -*|none|proc|sysfs|devtmpfs|tmpfs|devpts)
+        exec /bin/busybox mount "$@"
+        ;;
+esac
 
 if [ -z "$1" ]; then
     echo "==================== ACTIVE MOUNTED FILESYSTEMS ===================="

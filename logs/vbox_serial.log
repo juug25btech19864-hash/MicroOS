@@ -1,11 +1,7 @@
-[H[2J  __  __ _               ___  ____  
- |  \/  (_)___ _ __ ___ / _ \/ ___| 
- | |\/| | / __| '__/ _ \ | | \___ \ 
- | |  | | \__ \ | | (_) | |_| |___) |
- |_|  |_|_|___/_|  \___/ \___/|____/ 
-
-MICROOS
-Minimal Linux. Maximum control.
+[H[2J┌──────────────────────────────────────────────────────────────┐
+│                           MICROOS                            │
+│               MINIMAL LINUX. MAXIMUM CONTROL.                │
+└──────────────────────────────────────────────────────────────┘
 
 Boot sequence completed.
 Firmware -> GRUB -> Linux Kernel -> Initramfs -> /init -> MicroOS shell.
@@ -18,17 +14,18 @@ BusyBox v1.37.0 (Ubuntu 1:1.37.0-7ubuntu1) built-in shell (ash)
 Enter 'help' for a list of built-in commands.
 
 /bin/sh: can't access tty; job control turned off
-[H[2J  __  __ _               ___  ____  
- |  \/  (_)___ _ __ ___ / _ \/ ___| 
- | |\/| | / __| '__/ _ \ | | \___ \ 
- | |  | | \__ \ | | (_) | |_| |___) |
- |_|  |_|_|___/_|  \___/ \___/|____/ 
+[H[2J┌──────────────────────────────────────────────────────────────┐
+│                           MICROOS                            │
+│               MINIMAL LINUX. MAXIMUM CONTROL.                │
+└──────────────────────────────────────────────────────────────┘
 
-MICROOS v1.0
-Minimal Linux. Maximum control.
+Welcome to MicroOS v2.0!
 
-Welcome to MicroOS!
-Type 'help' for available commands, 'sysinfo' for diagnostics,
-or 'arcade' to launch retro terminal games.
+  * Type 'dashboard'   to launch the interactive Control Center
+  * Type 'help'        for the complete command reference
+  * Type 'net'         for network status & configuration
+  * Type 'wifi'        for Wi-Fi management
+  * Type 'arcade'      to play 8 built-in retro terminal games
+  * Type 'diagnostics' to run automated system health checks
 
-[1;32mmicro@micro[0m:[1;34m/[0m# [6n
+[1;36mmicro@micro [1;34m/ [1;32m$ [0m[6n

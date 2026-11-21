@@ -1,0 +1,157 @@
+#!/bin/sh
+# MicroOS Automated System & Network Diagnostics Engine
+# Performs real multi-point hardware, driver, IP, routing, and connectivity tests
+
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_CYAN="\033[1;36m"
+C_GREEN="\033[1;32m"
+C_YELLOW="\033[1;33m"
+C_RED="\033[1;31m"
+C_WHITE="\033[1;37m"
+C_GRAY="\033[0;90m"
+
+if [ ! -t 1 ]; then
+    C_RESET=""
+    C_BOLD=""
+    C_CYAN=""
+    C_GREEN=""
+    C_YELLOW=""
+    C_RED=""
+    C_WHITE=""
+    C_GRAY=""
+fi
+
+echo "${C_CYAN}╔══════════════════════════════════════════════════════════════╗"
+echo "║             MICROOS AUTOMATED SYSTEM DIAGNOSTICS             ║"
+echo "║               Minimal Linux. Maximum Control.                ║"
+echo "╚══════════════════════════════════════════════════════════════╝${C_RESET}"
+echo ""
+
+# 1. Hardware Inspection
+echo "${C_BOLD}[TEST 1/8] Kernel & Architecture Verification...${C_RESET}"
+arch=$(uname -m)
+kver=$(uname -r)
+if [ "$arch" = "x86_64" ]; then
+    echo "  ${C_GREEN}PASS:${C_RESET} x86_64 Long Mode Kernel validated ($kver)"
+else
+    echo "  ${C_YELLOW}WARN:${C_RESET} Non-standard architecture: $arch"
+fi
+
+# 2. Memory Check
+echo "${C_BOLD}[TEST 2/8] Memory Allocation & Free RAM Audit...${C_RESET}"
+if [ -f /proc/meminfo ]; then
+    total_mem=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
+    avail_mem=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || awk '/MemFree:/ {print int($2/1024)}' /proc/meminfo)
+    echo "  ${C_GREEN}PASS:${C_RESET} RAM Capacity: ${total_mem} MB (Available: ${avail_mem} MB)"
+    if [ "$avail_mem" -lt 128 ]; then
+        echo "  ${C_YELLOW}WARN:${C_RESET} Low memory environment (<128 MB available)"
+    fi
+else
+    echo "  ${C_RED}FAIL:${C_RESET} /proc/meminfo inaccessible"
+fi
+
+# 3. Storage Subsystem
+echo "${C_BOLD}[TEST 3/8] Storage Controller & Disk Discovery...${C_RESET}"
+disk_count=0
+for d in /dev/sd[a-z] /dev/nvme*n[0-9] /dev/vd[a-z]; do
+    [ -b "$d" ] || continue
+    disk_count=$((disk_count + 1))
+    dsize=$(cat "/sys/class/block/$(basename "$d")/size" 2>/dev/null || echo 0)
+    dmb=$((dsize * 512 / 1024 / 1024))
+    echo "  * Detected Block Device: $d (${dmb} MB)"
+done
+if [ "$disk_count" -gt 0 ]; then
+    echo "  ${C_GREEN}PASS:${C_RESET} $disk_count active storage drive(s) detected"
+else
+    echo "  ${C_YELLOW}NOTICE:${C_RESET} Running in pure Live RAM mode (No fixed hard drives found)"
+fi
+
+# 4. Network Interface Detection
+echo "${C_BOLD}[TEST 4/8] Network Controller & Interface Probing...${C_RESET}"
+found_if=0
+wlan_found=0
+eth_found=0
+for ifpath in /sys/class/net/*; do
+    [ -e "$ifpath" ] || continue
+    ifname=$(basename "$ifpath")
+    [ "$ifname" = "lo" ] && continue
+    found_if=$((found_if + 1))
+    
+    if [ -d "$ifpath/wireless" ] || [ -d "$ifpath/phy80211" ]; then
+        wlan_found=1
+        driver=$(basename "$(readlink -f "$ifpath/device/driver" 2>/dev/null || echo 'Unknown')")
+        echo "  * Physical Wi-Fi Interface: $ifname (Driver: $driver)"
+    else
+        eth_found=1
+        driver=$(basename "$(readlink -f "$ifpath/device/driver" 2>/dev/null || echo 'Unknown')")
+        echo "  * Ethernet Interface:       $ifname (Driver: $driver)"
+    fi
+done
+
+if [ "$found_if" -gt 0 ]; then
+    echo "  ${C_GREEN}PASS:${C_RESET} Detected $found_if physical network controller(s)"
+else
+    echo "  ${C_RED}NOTICE:${C_RESET} No physical network controllers detected (Offline configuration)"
+fi
+
+# 5. IP Address Assignment
+echo "${C_BOLD}[TEST 5/8] IP Address Assignment & Subnet Verification...${C_RESET}"
+active_ips=$(ip -4 addr show 2>/dev/null | grep -o 'inet [^/]*' | cut -d' ' -f2 | grep -v '^127\.' || true)
+if [ -n "$active_ips" ]; then
+    for ip in $active_ips; do
+        echo "  * Active IP: ${C_GREEN}$ip${C_RESET}"
+    done
+    echo "  ${C_GREEN}PASS:${C_RESET} Valid IP address lease active"
+else
+    echo "  ${C_YELLOW}NOTICE:${C_RESET} No external IPv4 addresses assigned (Offline mode)"
+fi
+
+# 6. Default Gateway & Kernel Routing
+echo "${C_BOLD}[TEST 6/8] Default Gateway & Route Audit...${C_RESET}"
+gw=$(ip route show 2>/dev/null | grep '^default' | awk '{print $3}' | head -n1 || true)
+if [ -n "$gw" ]; then
+    echo "  ${C_GREEN}PASS:${C_RESET} Default Gateway: $gw"
+else
+    echo "  ${C_YELLOW}NOTICE:${C_RESET} No default gateway configured"
+fi
+
+# 7. DNS Resolution Test
+echo "${C_BOLD}[TEST 7/8] DNS Resolver Configuration...${C_RESET}"
+if [ -s /etc/resolv.conf ] && grep -q 'nameserver' /etc/resolv.conf 2>/dev/null; then
+    dns_list=$(grep '^nameserver' /etc/resolv.conf | awk '{print $2}' | tr '\n' ' ')
+    echo "  ${C_GREEN}PASS:${C_RESET} Configured Nameservers: $dns_list"
+else
+    echo "  ${C_YELLOW}NOTICE:${C_RESET} /etc/resolv.conf is empty or contains no nameservers"
+fi
+
+# 8. Loopback & End-to-End ICMP Connectivity
+echo "${C_BOLD}[TEST 8/8] ICMP Ping Stack & Connectivity Verification...${C_RESET}"
+# Test Loopback
+if ping -c 1 -W 1 127.0.0.1 >/dev/null 2>&1 || busybox ping -c 1 127.0.0.1 >/dev/null 2>&1; then
+    echo "  ${C_GREEN}PASS:${C_RESET} Local loopback interface (127.0.0.1) operational"
+else
+    echo "  ${C_RED}FAIL:${C_RESET} Local loopback stack failed"
+fi
+
+# Test Gateway or External if available
+if [ -n "$gw" ]; then
+    if ping -c 2 -W 2 "$gw" >/dev/null 2>&1 || busybox ping -c 2 "$gw" >/dev/null 2>&1; then
+        echo "  ${C_GREEN}PASS:${C_RESET} Gateway reachability ($gw) verified"
+    else
+        echo "  ${C_YELLOW}WARN:${C_RESET} Gateway ($gw) unpingable (may be filtering ICMP)"
+    fi
+fi
+
+echo ""
+echo "${C_CYAN}======================================================================${C_RESET}"
+echo "${C_BOLD}DIAGNOSTIC SUMMARY:${C_RESET}"
+if [ -n "$active_ips" ] && [ -n "$gw" ]; then
+    echo "  System Status:  ${C_GREEN}ONLINE & FULLY CONNECTED${C_RESET}"
+else
+    echo "  System Status:  ${C_YELLOW}OFFLINE / LOCAL ISOLATED MODE${C_RESET}"
+    echo "  Note: VirtualBox offline testing runs without network by design."
+    echo "  To connect, run '${C_CYAN}net restart${C_RESET}' (Ethernet) or '${C_CYAN}wifi${C_RESET}' (Native laptop)."
+fi
+echo "${C_CYAN}======================================================================${C_RESET}"
+echo ""

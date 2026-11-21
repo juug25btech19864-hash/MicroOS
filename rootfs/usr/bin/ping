@@ -1,1 +1,119 @@
-/bin/busybox
+#!/bin/sh
+# MicroOS Network Ping Diagnostic Tool
+# Robust ping wrapper with clean diagnostic reporting and offline intelligence
+
+# ANSI Colors
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_CYAN="\033[1;36m"
+C_GREEN="\033[1;32m"
+C_YELLOW="\033[1;33m"
+C_RED="\033[1;31m"
+C_GRAY="\033[0;90m"
+
+if [ ! -t 1 ]; then
+    C_RESET=""
+    C_BOLD=""
+    C_CYAN=""
+    C_GREEN=""
+    C_YELLOW=""
+    C_RED=""
+    C_GRAY=""
+fi
+
+if [ -z "$1" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    cat <<EOF
+Usage: ping [options] <destination>
+
+Options:
+  -c <count>    Stop after sending <count> packets (default: continuous)
+  -4            Force IPv4 resolution
+  -6            Force IPv6 resolution
+  -s <size>     Specify number of data bytes to send (default: 56)
+  -W <timeout>  Time to wait for a response in seconds
+
+Examples:
+  ping 127.0.0.1
+  ping 8.8.8.8
+  ping -c 4 google.com
+  ping -c 5 1.1.1.1
+EOF
+    exit 0
+fi
+
+# Extract the destination (last non-option argument)
+target=""
+for arg in "$@"; do
+    case "$arg" in
+        -*) ;;
+        *) target="$arg" ;;
+    esac
+done
+
+if [ -z "$target" ]; then
+    echo "${C_RED}[ERROR] Destination host or IP address required.${C_RESET}"
+    exit 1
+fi
+
+# Pre-flight check: Loopback vs External
+is_loopback=0
+case "$target" in
+    127.*|localhost|::1)
+        is_loopback=1
+        ;;
+esac
+
+if [ "$is_loopback" -eq 0 ]; then
+    # Check if any network interfaces have active links and IPs
+    has_active_if=0
+    for ifpath in /sys/class/net/*; do
+        [ -e "$ifpath" ] || continue
+        ifname=$(basename "$ifpath")
+        [ "$ifname" = "lo" ] && continue
+        oper=$(cat "$ifpath/operstate" 2>/dev/null || echo "down")
+        if [ "$oper" = "up" ]; then
+            has_active_if=1
+            break
+        fi
+    done
+
+    # Check default gateway route
+    has_gateway=0
+    if ip route 2>/dev/null | grep -q 'default'; then
+        has_gateway=1
+    elif route -n 2>/dev/null | grep -q '^0\.0\.0\.0'; then
+        has_gateway=1
+    fi
+
+    # If completely offline, report clear diagnostics before executing
+    if [ "$has_active_if" -eq 0 ]; then
+        echo "${C_YELLOW}[OFFLINE] No active network interfaces detected.${C_RESET}"
+        echo "  - Connect an Ethernet cable or connect to Wi-Fi using '${C_CYAN}wifi${C_RESET}'."
+        echo "  - Check interface state with '${C_CYAN}net${C_RESET}' or '${C_CYAN}net interfaces${C_RESET}'."
+    elif [ "$has_gateway" -eq 0 ]; then
+        echo "${C_YELLOW}[NOTICE] No default gateway route found.${C_RESET}"
+        echo "  - Interface is up, but DHCP lease or default route is missing."
+        echo "  - Run '${C_CYAN}net restart${C_RESET}' to request a new DHCP lease."
+    fi
+
+    # If target is a hostname, verify DNS resolution exists
+    case "$target" in
+        *[a-zA-Z]*)
+            if [ ! -s /etc/resolv.conf ] || ! grep -q 'nameserver' /etc/resolv.conf 2>/dev/null; then
+                echo "${C_YELLOW}[DNS WARNING] No DNS nameservers found in /etc/resolv.conf.${C_RESET}"
+                echo "  Hostname resolution for '$target' may fail."
+            fi
+            ;;
+    esac
+fi
+
+# Execute standard BusyBox ping binary with all supplied arguments
+BUSYBOX_BIN=$(which busybox || echo "/bin/busybox")
+if [ -x "$BUSYBOX_BIN" ]; then
+    exec "$BUSYBOX_BIN" ping "$@"
+elif command -v ping >/dev/null 2>&1; then
+    exec ping "$@"
+else
+    echo "${C_RED}[ERROR] ping executable not found in system.${C_RESET}"
+    exit 1
+fi

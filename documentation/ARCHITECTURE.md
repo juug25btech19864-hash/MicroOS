@@ -11,7 +11,10 @@ MicroOS is built around three core engineering principles:
 +----------------------------------------------------------------------------------+
 |                                    MicroOS                                       |
 +----------------------------------------------------------------------------------+
-|  User Interface: MicroOS Branded ash Shell + Custom CLI (`hardware`, `wifi`, etc)|
+|  User Interface: Modern MicroOS Terminal (micro@micro ~ $)                       |
+|  Control Center: Interactive Dashboard (`dashboard`) & Settings (`settings`)     |
+|  Command Layer: Dynamic Help (`help [cmd]`), Diagnostics (`diagnostics`)         |
+|  Network Stack: Unified `net`, `wifi` (iwd/iwctl), and Diagnostic `ping`         |
 |  Micro Arcade: 8 Native C Terminal Games (`snake`, `tetris`, `pong`, ...)        |
 +----------------------------------------------------------------------------------+
 |  Persistent Userspace (Optional SSD / USB Partition)                             |

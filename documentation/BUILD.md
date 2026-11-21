@@ -18,7 +18,9 @@ The MicroOS build system utilizes a modern x86_64 toolchain:
 | Arcade Binaries | `build/games/<game>` | `rootfs/usr/games/<game>` |
 | Hardware Tools | `hardware/hardware` | `rootfs/usr/bin/hardware` |
 | Storage Tools | `storage/disks` | `rootfs/usr/bin/disks` |
-| Network Tools | `networking/wifi` | `rootfs/usr/bin/wifi` |
+| Network Tools | `networking/net`, `networking/wifi`, `networking/ping` | `rootfs/usr/bin/net`, `rootfs/usr/bin/wifi`, `rootfs/usr/bin/ping` |
+| UI & Controls | `shell/dashboard`, `shell/settings`, `shell/diagnostics` | `rootfs/usr/bin/dashboard`, `rootfs/usr/bin/settings`, `rootfs/usr/bin/diagnostics` |
+| Wireless Daemons | `iwd`, `iwctl` | `rootfs/usr/sbin/iwd`, `rootfs/usr/bin/iwctl` |
 | Kernel vmlinuz | `kernel/vmlinuz` | `boot/vmlinuz` |
 | Kernel Modules | `kernel/modules/` | `rootfs/lib/modules/` |
 | Initramfs Image | `build/initramfs.cpio.gz` | `boot/initramfs.cpio.gz` |

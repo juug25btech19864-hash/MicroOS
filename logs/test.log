@@ -106,3 +106,42 @@ WARNING: The character device /dev/vboxdrv does not exist.
 [2026-11-21T09:45:01Z] Strict Policy: ZERO QEMU USAGE ENFORCED
 [2026-11-21T09:45:01Z] Result: ALL TESTS PASSED
 [2026-11-21T09:45:01Z] ============================================================
+[2026-11-21T08:29:25Z] ============================================================
+[2026-11-21T08:29:25Z] MICROOS v2.0 AUTOMATED COMMAND & SUBSYSTEM TEST SUITE
+[2026-11-21T08:29:25Z] ============================================================
+[2026-11-21T08:29:25Z] TEST 1: Testing 'help' command reference...
+[2026-11-21T08:29:25Z]   [PASS] 'help' general reference executed cleanly
+[2026-11-21T08:29:25Z]   [PASS] 'help wifi' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help net' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help ping' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help hardware' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help disks' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help mount' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help apt' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help dashboard' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help settings' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help diagnostics' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help arcade' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] 'help sysinfo' subcommand manual verified
+[2026-11-21T08:29:25Z]   [PASS] Unknown command properly trapped and reported by help
+[2026-11-21T08:29:25Z] TEST 2: Testing Wi-Fi CLI subcommands...
+[2026-11-21T08:29:26Z]   [PASS] 'wifi status' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'wifi info' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'wifi help' executed cleanly
+[2026-11-21T08:29:26Z] TEST 3: Testing Network Management ('net') commands...
+[2026-11-21T08:29:26Z]   [PASS] 'net status' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'net interfaces' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'net ip' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'net dns' executed cleanly
+[2026-11-21T08:29:26Z]   [PASS] 'net route' executed cleanly
+[2026-11-21T08:29:26Z] TEST 4: Testing Ping command...
+[2026-11-21T08:29:26Z]   [PASS] 'ping --help' executed cleanly
+[2026-11-21T08:29:26Z] TEST 5: Testing Dashboard menu navigation...
+[2026-11-21T08:29:26Z]   [PASS] 'dashboard' menu navigation and clean exit (Option 8) verified
+[2026-11-21T08:29:26Z] TEST 6: Testing Settings menu navigation...
+[2026-11-21T08:29:26Z]   [PASS] 'settings' menu navigation and clean exit (Option 0) verified
+[2026-11-21T08:29:26Z] TEST 7: Testing System Diagnostics...
+[2026-11-21T08:29:29Z]   [PASS] 'diagnostics' 8-point automated test runner verified
+[2026-11-21T08:29:29Z] ============================================================
+[2026-11-21T08:29:29Z] [SUCCESS] All MicroOS v2.0 Subsystem Tests Passed!
+[2026-11-21T08:29:29Z] ============================================================

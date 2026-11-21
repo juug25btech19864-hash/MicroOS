@@ -1,6 +1,6 @@
 ﻿{
     "project":  "MicroOS",
-    "version":  "1.0",
+    "version":  "2.0",
     "max_iso_size_bytes":  50000000,
     "phases":  {
                    "phase_1_initialization":  {
@@ -284,9 +284,10 @@
                                                                           "xorriso hybrid ISO structure check"
                                                                       ],
                                                    "test_results":  [
-                                                                        "PASSED: Bootable hybrid ISO generated at 31,844,352 bytes (30.37 MB)",
-                                                                        "PASSED: Size strictly within 50,000,000 byte hard ceiling (18,155,648 bytes remaining headroom)",
-                                                                        "PASSED: Cryptographic SHA256 checksum generated"
+                                                                        "PASSED: Bootable hybrid ISO generated at 32,849,920 bytes (31.33 MB)",
+                                                                        "PASSED: Size strictly within 50,000,000 byte hard ceiling (17,150,080 bytes remaining headroom)",
+                                                                        "PASSED: Cryptographic SHA256 checksum generated",
+                                                                        "PASSED: Integrated MicroOS v2.0 userspace, dynamic help, net manager, wifi CLI, ping, dashboard, settings, and diagnostics"
                                                                     ],
                                                    "remaining_issues":  [
 
@@ -310,8 +311,10 @@
                                                                             "PASSED: Oracle VirtualBox 7.2.22 headless boot verified on host",
                                                                             "PASSED: Configuration audited: 1024MB RAM, 1 CPU, nic1 none (offline testing mode)",
                                                                             "PASSED: Legacy BIOS and UEFI boot modes validated",
-                                                                            "PASSED: Guest serial console verified: Firmware -\u003e GRUB -\u003e Linux Kernel -\u003e Initramfs -\u003e /init -\u003e rcS -\u003e MicroOS shell",
-                                                                            "PASSED: Strict zero QEMU policy rigorously enforced"
+                                                                            "PASSED: Guest serial console verified: Firmware -\u003e GRUB -\u003e Linux Kernel -\u003e Initramfs -\u003e /init -\u003e rcS -\u003e MicroOS v2.0 shell (micro@micro / $)",
+                                                                            "PASSED: Modern Windows/macOS-inspired visual banners verified",
+                                                                            "PASSED: Strict zero QEMU policy rigorously enforced",
+                                                                            "PASSED: Permanent MicroOS VM registered and ready for user launch"
                                                                         ],
                                                        "remaining_issues":  [
 

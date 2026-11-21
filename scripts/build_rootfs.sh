@@ -41,7 +41,7 @@ for applet in $(./bin/busybox --list); do
             init|halt|poweroff|reboot|mdev|ifconfig|route|ip|fdisk|fsck|modprobe|insmod|rmmod|lsmod)
                 ln -sf /bin/busybox "sbin/$applet"
                 ;;
-            sh|ash|bash|login|mount|umount|cat|ls|cp|mv|rm|mkdir|rmdir|touch|chmod|chown|sync|sleep|date|uname|dmesg|kill|ps)
+            sh|ash|bash|login|mount|umount|cat|ls|cp|mv|rm|mkdir|rmdir|touch|chmod|chown|sync|sleep|date|uname|dmesg|kill|ps|ping|clear|hostname|uptime|udhcpc)
                 ln -sf /bin/busybox "bin/$applet"
                 ;;
             *)
@@ -57,7 +57,7 @@ ln -sf /bin/busybox bin/ash
 
 # 3. Install MicroOS Shell & System Utilities
 echo "  [UTILS] Installing MicroOS custom CLI tools..."
-rm -f usr/bin/hardware usr/bin/disks bin/mount bin/unmount bin/umount usr/bin/wifi usr/bin/apt usr/bin/sysinfo usr/bin/help
+rm -f usr/bin/hardware usr/bin/disks bin/mount bin/unmount bin/umount usr/bin/wifi usr/bin/net usr/bin/ping bin/ping usr/bin/apt usr/bin/sysinfo usr/bin/dashboard usr/bin/settings usr/bin/control usr/bin/diagnostics usr/bin/help
 
 cp "$PROJ_DIR/hardware/hardware" usr/bin/hardware
 chmod +x usr/bin/hardware
@@ -75,11 +75,28 @@ ln -sf /bin/unmount bin/umount
 cp "$PROJ_DIR/networking/wifi" usr/bin/wifi
 chmod +x usr/bin/wifi
 
+cp "$PROJ_DIR/networking/net" usr/bin/net
+chmod +x usr/bin/net
+
+cp "$PROJ_DIR/networking/ping" usr/bin/ping
+chmod 4755 usr/bin/ping
+ln -sf /usr/bin/ping bin/ping
+
 cp "$PROJ_DIR/package-manager/apt" usr/bin/apt
 chmod +x usr/bin/apt
 
 cp "$PROJ_DIR/shell/sysinfo" usr/bin/sysinfo
 chmod +x usr/bin/sysinfo
+
+cp "$PROJ_DIR/shell/dashboard" usr/bin/dashboard
+chmod +x usr/bin/dashboard
+
+cp "$PROJ_DIR/shell/settings" usr/bin/settings
+chmod +x usr/bin/settings
+ln -sf /usr/bin/settings usr/bin/control
+
+cp "$PROJ_DIR/shell/diagnostics" usr/bin/diagnostics
+chmod +x usr/bin/diagnostics
 
 cp "$PROJ_DIR/shell/help" usr/bin/help
 chmod +x usr/bin/help
@@ -134,7 +151,7 @@ EOF
 chmod 0600 etc/shadow
 
 cat <<'EOF' > etc/issue
-MicroOS v1.0 (x86_64) - Minimal Linux. Maximum control.
+MicroOS v2.0 (x86_64) - Minimal Linux. Maximum control.
 \l on \n
 
 EOF
@@ -165,6 +182,27 @@ if [ -f "$LD_LINUX" ]; then
     cp -L "$LD_LINUX" lib64/
     ln -sf /lib64/$(basename "$LD_LINUX") lib/$(basename "$LD_LINUX") || true
 fi
+
+# Stage wireless utilities (iwd, iwctl) and dependencies
+echo "  [WIFI] Staging iwd daemon and iwctl wireless controller..."
+if [ -x /usr/libexec/iwd ]; then
+    cp /usr/libexec/iwd usr/sbin/iwd
+    chmod 0755 usr/sbin/iwd
+    strip --strip-unneeded usr/sbin/iwd 2>/dev/null || true
+fi
+if [ -x /usr/bin/iwctl ]; then
+    cp /usr/bin/iwctl usr/bin/iwctl
+    chmod 0755 usr/bin/iwctl
+    strip --strip-unneeded usr/bin/iwctl 2>/dev/null || true
+fi
+
+for l in "libell.so.0" "libreadline.so.8" "libtinfo.so.6"; do
+    LPATH=$(ldconfig -p | grep "$l" | awk '{print $NF}' | head -n1 || true)
+    if [ -f "$LPATH" ]; then
+        cp -L "$LPATH" lib/
+        strip --strip-unneeded "lib/$(basename "$LPATH")" 2>/dev/null || true
+    fi
+done
 
 # 9. Copy Essential Kernel Modules
 echo "  [MODS] Staging essential kernel modules in /lib/modules/7.0.0-43-generic..."

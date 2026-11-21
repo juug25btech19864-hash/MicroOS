@@ -56,6 +56,21 @@ MicroOS testing enforces strict, non-negotiable standards:
    - `spaceinvaders`
 2. Menu launcher `arcade` navigation and clean exit.
 
+### Suite E: Network, Subsystems & UI Validation (v2.0)
+1. Execution of `tests/run_v2_tests.sh`:
+   - `help` general reference and all subcommands (`help wifi`, `help net`, etc.)
+   - Unknown command reporting
+   - `net status`, `net interfaces`, `net ip`, `net dns`, `net route`
+   - `wifi status`, `wifi info`, `wifi help`
+   - `ping --help` and offline loopback / gateway handling
+   - `dashboard` Control Center navigation and clean exit
+   - `settings` System Preferences navigation and clean exit
+   - `diagnostics` automated 8-point system test suite
+2. VirtualBox v2.0 boot test via `tests/vbox_v2_qa.ps1`:
+   - Verified headless boot with 1024 MB RAM, 1 CPU, offline mode
+   - Guest serial output audited: Windows/macOS banner -> MicroOS ash shell -> `micro@micro / $ ` prompt
+   - Zero QEMU usage strictly enforced
+
 ---
 
 ## 4. Test Logs

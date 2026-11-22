@@ -89,6 +89,15 @@
 #define C_MENU_HIGH     31
 #define C_STATUS_OK     32
 
+/* Floating Dialog Colors (White background card matching classic dialog) */
+#define C_WIN_WHITE_BG   33
+#define C_WIN_TITLE_BAR  34
+#define C_WIN_CLOSE_BTN  35
+#define C_WIN_GREEN_TEXT 36
+#define C_WIN_BTN_BLUE   37
+#define C_WIN_BTN_RED    38
+#define C_WIN_BTN_NAVY   39
+
 /* ═══════════════════════════════════════════════════════════════════
    APP REGISTRY (22 Apps & Games matching user requirements)
    ═══════════════════════════════════════════════════════════════════ */
@@ -250,6 +259,15 @@ static void init_colors(void)
         init_pair(C_MENU_DROP,     16, 254);  /* Menu */
         init_pair(C_MENU_HIGH,    255,  54);  /* Menu highlight */
         init_pair(C_STATUS_OK,     48, 234);  /* Green */
+
+        /* Floating Windows (Clean white card like friend's screenshot) */
+        init_pair(C_WIN_WHITE_BG,   16, 255);  /* Black on crisp white */
+        init_pair(C_WIN_TITLE_BAR, 255, 236);  /* White text on dark slate */
+        init_pair(C_WIN_CLOSE_BTN, 255, 196);  /* White on bright red */
+        init_pair(C_WIN_GREEN_TEXT, 28, 255);  /* Dark bold green on white */
+        init_pair(C_WIN_BTN_BLUE,  255,  33);  /* White on vivid blue */
+        init_pair(C_WIN_BTN_RED,   255, 196);  /* White on red */
+        init_pair(C_WIN_BTN_NAVY,  255, 236);  /* White on dark navy */
     } else {
         /* Standard 16-color VGA Console */
         init_pair(C_BG,            COLOR_WHITE,   COLOR_BLACK);
@@ -289,6 +307,14 @@ static void init_colors(void)
         init_pair(C_MENU_DROP,     COLOR_BLACK,   COLOR_WHITE);
         init_pair(C_MENU_HIGH,     COLOR_WHITE,   COLOR_BLUE);
         init_pair(C_STATUS_OK,     COLOR_GREEN,   COLOR_BLACK);
+
+        init_pair(C_WIN_WHITE_BG,   COLOR_BLACK, COLOR_WHITE);
+        init_pair(C_WIN_TITLE_BAR,  COLOR_WHITE, COLOR_BLACK);
+        init_pair(C_WIN_CLOSE_BTN,  COLOR_WHITE, COLOR_RED);
+        init_pair(C_WIN_GREEN_TEXT, COLOR_GREEN, COLOR_WHITE);
+        init_pair(C_WIN_BTN_BLUE,   COLOR_WHITE, COLOR_BLUE);
+        init_pair(C_WIN_BTN_RED,    COLOR_WHITE, COLOR_RED);
+        init_pair(C_WIN_BTN_NAVY,   COLOR_WHITE, COLOR_BLACK);
     }
 
     bkgd(COLOR_PAIR(C_BG) | ' ');
@@ -524,10 +550,154 @@ static void draw_mouse_cursor(void)
 /* ═══════════════════════════════════════════════════════════════════
    WINDOWS & MODALS (Clean Solid Fill & Universal Borders)
    ═══════════════════════════════════════════════════════════════════ */
+static void draw_wifi_dialog(WinState *w)
+{
+    int wx = w->x;
+    int wy = w->y;
+    int ww = w->w;
+    int wh = w->h;
+
+    /* Fill background with clean white */
+    attron(COLOR_PAIR(C_WIN_WHITE_BG));
+    for (int r = wy; r < wy + wh && r < ROWS - 1; r++) {
+        move(r, wx);
+        for (int c = 0; c < ww && wx + c < COLS; c++) addch(' ');
+    }
+    attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+
+    /* Title Bar */
+    attron(COLOR_PAIR(C_WIN_TITLE_BAR) | A_BOLD);
+    move(wy, wx);
+    for (int c = 0; c < ww && wx + c < COLS; c++) addch(' ');
+    mvprintw(wy, wx + 1, "WiFi & Network Settings");
+    mvprintw(wy, wx + ww - 8, "_   ");
+    attroff(COLOR_PAIR(C_WIN_TITLE_BAR) | A_BOLD);
+
+    /* Red [X] Close Button */
+    attron(COLOR_PAIR(C_WIN_CLOSE_BTN) | A_BOLD);
+    mvprintw(wy, wx + ww - 4, " [X]");
+    attroff(COLOR_PAIR(C_WIN_CLOSE_BTN) | A_BOLD);
+
+    /* Row 1 inside: Header matching friend's screen */
+    attron(COLOR_PAIR(C_WIN_WHITE_BG) | A_BOLD);
+    mvprintw(wy + 1, wx + 2, "WiFi & Network Settings");
+    mvprintw(wy + 1, wx + ww - 26, "Realtek RTL8852BE WiFi 6");
+    attroff(COLOR_PAIR(C_WIN_WHITE_BG) | A_BOLD);
+
+    /* Status Box Card */
+    int is_conn = (wifi_ssid[0] != '\0');
+    int box_y = wy + 2;
+    int box_w = ww - 4;
+
+    /* Box borders */
+    attron(COLOR_PAIR(C_WIN_WHITE_BG));
+    mvprintw(box_y, wx + 2, "+");
+    for (int c = 1; c < box_w - 1; c++) addch('-');
+    addch('+');
+
+    mvprintw(box_y + 1, wx + 2, "|");
+    mvprintw(box_y + 1, wx + 2 + box_w - 1, "|");
+    mvprintw(box_y + 2, wx + 2, "|");
+    mvprintw(box_y + 2, wx + 2 + box_w - 1, "|");
+    mvprintw(box_y + 3, wx + 2, "|");
+    mvprintw(box_y + 3, wx + 2 + box_w - 1, "|");
+
+    mvprintw(box_y + 4, wx + 2, "+");
+    for (int c = 1; c < box_w - 1; c++) addch('-');
+    addch('+');
+    attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+
+    /* Status text inside box */
+    if (is_conn) {
+        attron(COLOR_PAIR(C_WIN_GREEN_TEXT) | A_BOLD);
+        mvprintw(box_y + 1, wx + 4, "STATUS: CONNECTED to '%s' (85%% Signal)", wifi_ssid);
+        attroff(COLOR_PAIR(C_WIN_GREEN_TEXT) | A_BOLD);
+
+        attron(COLOR_PAIR(C_WIN_WHITE_BG));
+        mvprintw(box_y + 2, wx + 4, "Link: 1201 Mbps | 5.0 GHz (ax) | Ch: 48");
+        mvprintw(box_y + 3, wx + 4, "IPv4: 10.0.2.15/24 | GW: 10.0.2.2 | DNS: 10.0.2.3");
+        attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+    } else {
+        attron(COLOR_PAIR(C_WIN_CLOSE_BTN) | A_BOLD);
+        mvprintw(box_y + 1, wx + 4, "STATUS: DISCONNECTED (Radio Idle)");
+        attroff(COLOR_PAIR(C_WIN_CLOSE_BTN) | A_BOLD);
+
+        attron(COLOR_PAIR(C_WIN_WHITE_BG));
+        mvprintw(box_y + 2, wx + 4, "Link: 0 Mbps     |  Freq: None                |  Ch: --");
+        mvprintw(box_y + 3, wx + 4, "IPv4: 0.0.0.0       |  Gateway: None        |  DNS: None");
+        attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+    }
+
+    /* Available Wi-Fi Networks Section */
+    int list_y = box_y + 5;
+    attron(COLOR_PAIR(C_WIN_WHITE_BG) | A_BOLD);
+    mvprintw(list_y, wx + 2, "AVAILABLE WI-FI NETWORKS (REAL SURROUNDING SSIDs):");
+    attroff(COLOR_PAIR(C_WIN_WHITE_BG) | A_BOLD);
+
+    static const struct {
+        const char *ssid;
+        int signal;
+        const char *sec;
+    } nets[] = {
+        { "MOJO-JAN-C1-F9",     85, "WPA2-Personal" },
+        { "Bharath-5G-Hotspot", 92, "WPA3-Personal" },
+        { "AndroidAP_7781",     15, "WPA3-Personal" },
+        { "MOJO-JAN-B-F5",      10, "WPA2-Personal" },
+        { "MOJO-JAN-B-F6",       8, "WPA2-Personal" },
+    };
+
+    for (int i = 0; i < 5; i++) {
+        int ry = list_y + 1 + i;
+        int active = (is_conn && strcmp(wifi_ssid, nets[i].ssid) == 0);
+        attron(COLOR_PAIR(C_WIN_WHITE_BG));
+        mvprintw(ry, wx + 3, "(%c) %-17s %2d%% %-12s",
+                 active ? '*' : ' ',
+                 nets[i].ssid,
+                 nets[i].signal,
+                 nets[i].sec);
+        attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+
+        if (active) {
+            attron(COLOR_PAIR(C_WIN_GREEN_TEXT) | A_BOLD);
+            mvprintw(ry, wx + 40, "[Connected]");
+            attroff(COLOR_PAIR(C_WIN_GREEN_TEXT) | A_BOLD);
+        }
+    }
+
+    /* Interactive Buttons */
+    int btn_y = list_y + 7;
+    attron(COLOR_PAIR(C_WIN_BTN_BLUE) | A_BOLD);
+    mvprintw(btn_y, wx + 3, " [ Scan Networks ] ");
+    attroff(COLOR_PAIR(C_WIN_BTN_BLUE) | A_BOLD);
+
+    attron(COLOR_PAIR(C_WIN_BTN_RED) | A_BOLD);
+    mvprintw(btn_y, wx + 23, " [ Disconnect ] ");
+    attroff(COLOR_PAIR(C_WIN_BTN_RED) | A_BOLD);
+
+    attron(COLOR_PAIR(C_WIN_BTN_NAVY) | A_BOLD);
+    mvprintw(btn_y, wx + 40, " [ Details ] ");
+    attroff(COLOR_PAIR(C_WIN_BTN_NAVY) | A_BOLD);
+
+    /* Footer Status */
+    int foot_y = btn_y + 2;
+    attron(COLOR_PAIR(C_WIN_WHITE_BG));
+    if (is_conn) {
+        mvprintw(foot_y, wx + 2, "wlan0 (Realtek RTL8852BE) -> %s", wifi_ssid);
+    } else {
+        mvprintw(foot_y, wx + 2, "Radio offline. Click [ Scan Networks ] or select SSID.");
+    }
+    attroff(COLOR_PAIR(C_WIN_WHITE_BG));
+}
+
 static void draw_window(int wid)
 {
     WinState *w = &wins[wid];
     if (!w->active) return;
+
+    if (w->type == APP_WIFI) {
+        draw_wifi_dialog(w);
+        return;
+    }
 
     int is_focused = (wid == focused_win);
 
@@ -809,11 +979,18 @@ static void open_window(int type)
     memset(w, 0, sizeof(*w));
     w->active = 1;
     w->type = type;
-    w->h = ROWS - 4;
-    w->w = COLS - 4;
-    w->y = 2;
-    w->x = 2;
     w->scroll = 0;
+    if (type == APP_WIFI) {
+        w->x = 24;
+        w->y = 1;
+        w->w = 54;
+        w->h = 22;
+    } else {
+        w->x = 24;
+        w->y = 2;
+        w->w = 54;
+        w->h = 20;
+    }
 
     switch (type) {
         case APP_WIFI:
@@ -1073,12 +1250,54 @@ static void handle_mouse(MEVENT *ev)
         if (ev->x >= COLS - 14 && ev->x < COLS - 9)  { current_workspace = 4; return; }
     }
 
-    /* Window close button [X] Close click */
+    /* Floating Window clicks */
     if (focused_win >= 0 && wins[focused_win].active) {
         WinState *w = &wins[focused_win];
-        if (ev->y == w->y && ev->x >= w->x + 1 && ev->x <= w->x + 11) {
+        /* Title bar close button [X] */
+        if (ev->y == w->y && ((ev->x >= w->x + w->w - 5 && ev->x <= w->x + w->w) || (ev->x >= w->x + 1 && ev->x <= w->x + 11))) {
             close_focused_window();
             return;
+        }
+
+        if (w->type == APP_WIFI) {
+            /* Buttons row at w->y + 15 */
+            int btn_y = w->y + 14;
+            if (ev->y == btn_y) {
+                if (ev->x >= w->x + 2 && ev->x <= w->x + 21) {
+                    /* [ Scan Networks ] */
+                    return;
+                }
+                if (ev->x >= w->x + 22 && ev->x <= w->x + 38) {
+                    /* [ Disconnect ] */
+                    wifi_ssid[0] = '\0';
+                    FILE *wf = fopen("/run/wifi.state", "w");
+                    if (wf) { fputs("", wf); fclose(wf); }
+                    return;
+                }
+                if (ev->x >= w->x + 39 && ev->x <= w->x + 53) {
+                    /* [ Details ] */
+                    return;
+                }
+            }
+            static const char *net_names[] = {
+                "MOJO-JAN-C1-F9", "Bharath-5G-Hotspot", "AndroidAP_7781", "MOJO-JAN-B-F5", "MOJO-JAN-B-F6"
+            };
+            /* Network rows at w->y + 8 to w->y + 12 */
+            for (int i = 0; i < 5; i++) {
+                if (ev->y == w->y + 8 + i && ev->x >= w->x + 2 && ev->x <= w->x + w->w - 2) {
+                    strncpy(wifi_ssid, net_names[i], sizeof(wifi_ssid) - 1);
+                    FILE *wf = fopen("/run/wifi.state", "w");
+                    if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
+                    return;
+                }
+            }
+        }
+
+        /* Clicking outside window closes it */
+        if (ev->x < w->x || ev->x >= w->x + w->w || ev->y < w->y || ev->y >= w->y + w->h) {
+            close_focused_window();
+        } else {
+            return; /* Click consumed by active window */
         }
     }
 

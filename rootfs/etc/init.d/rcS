@@ -13,7 +13,7 @@ mkdir -p /run /var/run /var/lib/iwd
 if [ -f /etc/wifi_ssid ]; then
     cp /etc/wifi_ssid /run/wifi.state
 else
-    echo "Jain_Student" > /run/wifi.state
+    echo "MOJO-JAN-C1-F9" > /run/wifi.state
 fi
 
 # Bring up loopback

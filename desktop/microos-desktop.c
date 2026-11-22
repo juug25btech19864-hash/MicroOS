@@ -167,29 +167,29 @@ static volatile int running = 1;
 static volatile int need_redraw = 1;
 
 typedef struct {
-    const char *name;
-    const char *status;
-    const char *bars;
+    char name[48];
+    char status[24];
+    char bars[12];
     int signal;
-    const char *dbm;
-    const char *proto;
-    const char *band;
-    const char *rate;
-    const char *ip;
-    const char *sec;
-    const char *bandShort;
+    char dbm[32];
+    char proto[32];
+    char band[32];
+    char rate[48];
+    char ip[48];
+    char sec[48];
+    char bandShort[16];
 } WifiNet;
 
-static const WifiNet wifi_list[] = {
-    { "Jain_Student",   "Secured", "[####]", 92, "-58 dBm, Optimal", "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "1201 Mbps / 960.5 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2", "5.0 GHz" },
-    { "Jain_Faculty",   "WPA2",    "[####]", 88, "-64 dBm, Good",    "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "866.7 Mbps / 866.7 Mbps Full Duplex", "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2", "5.0 GHz" },
-    { "Jain_Staff",     "WPA2",    "[###.]", 78, "-72 dBm, Good",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 6)",  "144.4 Mbps / 144.4 Mbps Half Duplex", "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)",       "2.4 GHz" },
-    { "eduroam",        "802.1X",  "[###.]", 72, "-74 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 44)", "540.0 Mbps / 540.0 Mbps Full Duplex", "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise (802.1X EAP)",   "5.0 GHz" },
-    { "Campus_Guest",   "Portal",  "[##..]", 55, "-78 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 11)", "72.2 Mbps / 72.2 Mbps Half Duplex",  "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "Open / Web Portal",              "2.4 GHz" },
-    { "Direct_Printer", "WPA2",    "[#...]", 35, "-86 dBm, Weak",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 1)",  "11.0 Mbps / 11.0 Mbps Half Duplex",   "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)",       "2.4 GHz" },
+static WifiNet wifi_list[16] = {
+    { "MOJO-JAN-C1-F9", "Secured", "[####]", 85, "-56 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "1201 Mbps / 1201 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+    { "MOJO-JAN-B-F7",  "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+    { "MOJO-F2",        "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+    { "MOJO-JAN-C1-F8", "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+    { "Mojo-JAN-B-F9",  "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+    { "MOJO-JAN-B-F5",  "Secured", "[##..]", 37, "-81 dBm, Fair", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
 };
-static const int WIFI_COUNT = sizeof(wifi_list) / sizeof(wifi_list[0]);
-static char wifi_ssid[64] = "Jain_Student";
+static int wifi_count = 6;
+static char wifi_ssid[64] = "MOJO-JAN-C1-F9";
 
 /* Windows */
 #define MAX_WINDOWS 6
@@ -653,7 +653,7 @@ static void sync_wifi_from_host(void)
 {
     const char *hosts[] = { "10.0.2.2", "192.168.56.1", "127.0.0.1" };
     int n_hosts = sizeof(hosts) / sizeof(hosts[0]);
-    char response[2048];
+    static char response[8192];
     int got_resp = 0;
 
     for (int h = 0; h < n_hosts && !got_resp; h++) {
@@ -662,7 +662,7 @@ static void sync_wifi_from_host(void)
 
         struct timeval tv;
         tv.tv_sec = 0;
-        tv.tv_usec = 250000; /* 250 ms max wait */
+        tv.tv_usec = 300000; /* 300 ms max wait */
         setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
@@ -678,9 +678,14 @@ static void sync_wifi_from_host(void)
         if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) == 0) {
             const char *req = "GET /api/wifi HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n";
             send(s, req, strlen(req), 0);
-            int n = recv(s, response, sizeof(response) - 1, 0);
-            if (n > 0) {
-                response[n] = '\0';
+            int total = 0;
+            while (total < (int)sizeof(response) - 1) {
+                int n = recv(s, response + total, sizeof(response) - 1 - total, 0);
+                if (n <= 0) break;
+                total += n;
+            }
+            if (total > 0) {
+                response[total] = '\0';
                 got_resp = 1;
             }
         }
@@ -689,18 +694,151 @@ static void sync_wifi_from_host(void)
 
     if (!got_resp) return;
 
-    /* Parse SSID: "ssid": "..." */
-    char *p = strstr(response, "\"ssid\":");
-    if (p) {
-        char *q1 = strchr(p + 7, '\"');
-        if (q1) {
-            char *q2 = strchr(q1 + 1, '\"');
-            if (q2 && (q2 - q1 < (int)sizeof(wifi_ssid))) {
-                int len = q2 - q1 - 1;
-                strncpy(wifi_ssid, q1 + 1, len);
-                wifi_ssid[len] = '\0';
-                FILE *wf = fopen("/run/wifi.state", "w");
-                if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
+    /* 1. Parse connected network */
+    char *conn_ptr = strstr(response, "\"connected\":");
+    if (conn_ptr) {
+        char *p = strstr(conn_ptr, "\"ssid\":");
+        if (p) {
+            char *q1 = strchr(p + 7, '\"');
+            if (q1) {
+                char *q2 = strchr(q1 + 1, '\"');
+                if (q2 && (q2 - q1 < (int)sizeof(wifi_ssid))) {
+                    int len = q2 - q1 - 1;
+                    strncpy(wifi_ssid, q1 + 1, len);
+                    wifi_ssid[len] = '\0';
+                    FILE *wf = fopen("/run/wifi.state", "w");
+                    if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
+                }
+            }
+        }
+    }
+
+    /* 2. Parse available networks array */
+    char *avail_ptr = strstr(response, "\"available\":");
+    if (avail_ptr) {
+        char *bracket = strchr(avail_ptr, '[');
+        if (bracket) {
+            int count = 0;
+            char *obj_start = strchr(bracket, '{');
+            while (obj_start && count < 16) {
+                char *obj_end = strchr(obj_start, '}');
+                if (!obj_end) break;
+
+                WifiNet *net = &wifi_list[count];
+                memset(net, 0, sizeof(WifiNet));
+
+                /* Extract ssid */
+                char *p_ssid = strstr(obj_start, "\"ssid\":");
+                if (p_ssid && p_ssid < obj_end) {
+                    char *s1 = strchr(p_ssid + 7, '\"');
+                    if (s1 && s1 < obj_end) {
+                        char *s2 = strchr(s1 + 1, '\"');
+                        if (s2 && s2 <= obj_end) {
+                            int l = s2 - s1 - 1;
+                            if (l >= (int)sizeof(net->name)) l = sizeof(net->name) - 1;
+                            strncpy(net->name, s1 + 1, l);
+                            net->name[l] = '\0';
+                        }
+                    }
+                }
+
+                if (net->name[0] != '\0') {
+                    /* Extract signal */
+                    net->signal = 75;
+                    char *p_sig = strstr(obj_start, "\"signal\":");
+                    if (p_sig && p_sig < obj_end) {
+                        net->signal = atoi(p_sig + 9);
+                    }
+
+                    /* Bars */
+                    if (net->signal >= 80) strcpy(net->bars, "[####]");
+                    else if (net->signal >= 60) strcpy(net->bars, "[###.]");
+                    else if (net->signal >= 40) strcpy(net->bars, "[##..]");
+                    else strcpy(net->bars, "[#...]");
+
+                    /* Security */
+                    strcpy(net->status, "Secured");
+                    strcpy(net->sec, "WPA2-Personal");
+                    char *p_sec = strstr(obj_start, "\"sec\":");
+                    if (p_sec && p_sec < obj_end) {
+                        char *sc1 = strchr(p_sec + 6, '\"');
+                        if (sc1 && sc1 < obj_end) {
+                            char *sc2 = strchr(sc1 + 1, '\"');
+                            if (sc2 && sc2 <= obj_end) {
+                                int l = sc2 - sc1 - 1;
+                                if (l >= (int)sizeof(net->sec)) l = sizeof(net->sec) - 1;
+                                strncpy(net->sec, sc1 + 1, l);
+                                net->sec[l] = '\0';
+                            }
+                        }
+                    }
+
+                    /* Band */
+                    strcpy(net->bandShort, "5.0 GHz");
+                    strcpy(net->band, "5.0 GHz (Channel 48)");
+                    char *p_band = strstr(obj_start, "\"band\":");
+                    if (p_band && p_band < obj_end) {
+                        char *b1 = strchr(p_band + 7, '\"');
+                        if (b1 && b1 < obj_end) {
+                            char *b2 = strchr(b1 + 1, '\"');
+                            if (b2 && b2 <= obj_end) {
+                                int l = b2 - b1 - 1;
+                                if (l >= (int)sizeof(net->bandShort)) l = sizeof(net->bandShort) - 1;
+                                strncpy(net->bandShort, b1 + 1, l);
+                                net->bandShort[l] = '\0';
+                                snprintf(net->band, sizeof(net->band), "%s (Auto)", net->bandShort);
+                            }
+                        }
+                    }
+
+                    /* Rate */
+                    strcpy(net->rate, "866.7 Mbps Full Duplex");
+                    char *p_rate = strstr(obj_start, "\"rate\":");
+                    if (p_rate && p_rate < obj_end) {
+                        char *r1 = strchr(p_rate + 7, '\"');
+                        if (r1 && r1 < obj_end) {
+                            char *r2 = strchr(r1 + 1, '\"');
+                            if (r2 && r2 <= obj_end) {
+                                int l = r2 - r1 - 1;
+                                if (l >= (int)sizeof(net->rate)) l = sizeof(net->rate) - 1;
+                                strncpy(net->rate, r1 + 1, l);
+                                net->rate[l] = '\0';
+                            }
+                        }
+                    }
+
+                    /* dBm */
+                    strcpy(net->dbm, "-56 dBm, Good");
+                    char *p_dbm = strstr(obj_start, "\"dbm\":");
+                    if (p_dbm && p_dbm < obj_end) {
+                        char *d1 = strchr(p_dbm + 6, '\"');
+                        if (d1 && d1 < obj_end) {
+                            char *d2 = strchr(d1 + 1, '\"');
+                            if (d2 && d2 <= obj_end) {
+                                int l = d2 - d1 - 1;
+                                if (l >= (int)sizeof(net->dbm)) l = sizeof(net->dbm) - 1;
+                                strncpy(net->dbm, d1 + 1, l);
+                                net->dbm[l] = '\0';
+                            }
+                        }
+                    }
+
+                    /* Protocol & IP */
+                    if (strstr(net->bandShort, "5") != NULL) {
+                        strcpy(net->proto, "802.11ax Wi-Fi 6");
+                    } else {
+                        strcpy(net->proto, "802.11n Wi-Fi 4");
+                    }
+                    snprintf(net->ip, sizeof(net->ip), "10.0.2.%d (Gateway: 10.0.2.2)", 15 + count);
+
+                    count++;
+                }
+
+                obj_start = strchr(obj_end + 1, '{');
+            }
+
+            if (count > 0) {
+                wifi_count = count;
             }
         }
     }
@@ -714,7 +852,7 @@ static void build_wifi(char *buf, int sz)
 {
     int connected = (wifi_ssid[0] != '\0');
     const WifiNet *cur = NULL;
-    for (int i = 0; i < WIFI_COUNT; i++) {
+    for (int i = 0; i < wifi_count; i++) {
         if (strcmp(wifi_ssid, wifi_list[i].name) == 0) {
             cur = &wifi_list[i];
             break;
@@ -725,41 +863,31 @@ static void build_wifi(char *buf, int sz)
     if (connected && cur) {
         snprintf(cur_block, sizeof(cur_block),
             "  ((o)) %-28s [CONNECTED, SECURED]\n"
-            "        Signal Strength: [==========] %d%% (%s)\n"
-            "        Radio Protocol : %s  |  Band: %s\n"
-            "        Connection Rate: %s\n"
-            "        IP Address     : %s\n"
-            "        Security Type  : %s\n",
+            "        Signal: %d%% (%s)  |  Band: %s\n"
+            "        Speed : %s  |  Proto: %s\n"
+            "        IP    : %s\n",
             cur->name,
-            cur->signal, cur->dbm,
-            cur->proto, cur->band,
-            cur->rate,
-            cur->ip,
-            cur->sec);
+            cur->signal, cur->dbm, cur->band,
+            cur->rate, cur->proto,
+            cur->ip);
     } else if (connected) {
         snprintf(cur_block, sizeof(cur_block),
             "  ((o)) %-28s [CONNECTED]\n"
-            "        Signal Strength: [==========] 92%% (-28 dBm, Optimal)\n"
-            "        Radio Protocol : 802.11n Wi-Fi 4  |  Band: 2.4 GHz\n"
-            "        Connection Rate: 144.4 Mbps Full Duplex\n"
-            "        IP Address     : 10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)\n"
-            "        Security Type  : WPA2-Personal\n",
+            "        Signal: 85%% (-56 dBm, Good)  |  Band: 5.0 GHz (Channel 48)\n"
+            "        Speed : 1201.0 Mbps Full Duplex  |  Proto: 802.11ax Wi-Fi 6\n"
+            "        IP    : 10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)\n",
             wifi_ssid);
     } else {
         snprintf(cur_block, sizeof(cur_block),
             "  ((o)) %-28s [DISCONNECTED, OFFLINE]\n"
-            "        Signal Strength: [..........] 0%% (Radio Idle)\n"
-            "        Radio Protocol : None\n"
-            "        Connection Rate: 0.0 Mbps\n"
-            "        IP Address     : 0.0.0.0 (No Link)\n"
-            "        Security Type  : None\n",
+            "        Signal: 0%% (Radio Idle)  |  Band: None  |  Speed: 0 Mbps\n",
             "No Network Connected");
     }
 
     char list_block[2048];
     list_block[0] = '\0';
     int offset = 0;
-    for (int i = 0; i < WIFI_COUNT; i++) {
+    for (int i = 0; i < wifi_count; i++) {
         int is_conn = (strcmp(wifi_ssid, wifi_list[i].name) == 0);
         char line[256];
         snprintf(line, sizeof(line),
@@ -778,6 +906,7 @@ static void build_wifi(char *buf, int sz)
         }
     }
 
+    int max_key = (wifi_count > 9) ? 9 : wifi_count;
     snprintf(buf, sz,
         "Wi-Fi Quick Settings & Wireless Networks\n"
         "====================================================================\n\n"
@@ -790,9 +919,9 @@ static void build_wifi(char *buf, int sz)
         "ACTIONS: Press [1-%d] Connect | [d] Disconnect | [r] Rescan | [Esc] Close\n",
         connected ? "ACTIVE & ENABLED" : "RADIO IDLE",
         cur_block,
-        WIFI_COUNT,
+        wifi_count,
         list_block,
-        WIFI_COUNT);
+        max_key);
 }
 
 static void build_sysmon(char *buf, int sz)
@@ -1196,12 +1325,13 @@ static void handle_input(int ch)
 
     /* Window scrolling and interactive keys */
     if (focused_win >= 0 && wins[focused_win].active) {
-        if (ch == KEY_PPAGE)
-            wins[focused_win].scroll = (wins[focused_win].scroll > 3) ? wins[focused_win].scroll - 3 : 0;
-        else if (ch == KEY_NPAGE)
-            wins[focused_win].scroll += 3;
+        if (ch == KEY_PPAGE || ch == KEY_UP)
+            wins[focused_win].scroll = (wins[focused_win].scroll > 1) ? wins[focused_win].scroll - 1 : 0;
+        else if (ch == KEY_NPAGE || ch == KEY_DOWN)
+            wins[focused_win].scroll += 1;
         else if (wins[focused_win].type == APP_WIFI) {
-            if (ch >= '1' && ch <= '0' + WIFI_COUNT) {
+            int max_key = (wifi_count > 9) ? 9 : wifi_count;
+            if (ch >= '1' && ch <= '0' + max_key) {
                 strncpy(wifi_ssid, wifi_list[ch - '1'].name, sizeof(wifi_ssid) - 1);
                 build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
                 FILE *wf = fopen("/run/wifi.state", "w");

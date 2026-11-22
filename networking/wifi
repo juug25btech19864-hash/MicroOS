@@ -22,14 +22,20 @@ C_MAGENTA="${ESC}[1;35m"
 
 # Initialize default connected network if not yet configured
 if [ ! -f "$STATE_FILE" ]; then
-    echo "Jain_Student" > "$STATE_FILE"
+    if [ -f /etc/wifi_ssid ]; then
+        cp /etc/wifi_ssid "$STATE_FILE"
+    else
+        echo "MOJO-JAN-C1-F9" > "$STATE_FILE"
+    fi
 fi
 
 get_current_ssid() {
     if [ -f "$STATE_FILE" ]; then
         cat "$STATE_FILE"
+    elif [ -f /etc/wifi_ssid ]; then
+        cat /etc/wifi_ssid
     else
-        echo "Jain_Student"
+        echo "MOJO-JAN-C1-F9"
     fi
 }
 
@@ -49,12 +55,12 @@ get_wifi_interface() {
 }
 
 # Real networks catalog (synchronized with host Wi-Fi adapter)
-NETWORKS="Jain_Student|92|5 GHz|WPA2-Enterprise|1201 Mbps|c0:35:32:6e:30:55|Connected
-Jain_Faculty|88|5 GHz|WPA2-Enterprise|866.7 Mbps|84:23:88:95:3d:ed|Available
-Jain_Staff|78|2.4 GHz|WPA2-PSK|144.4 Mbps|84:23:88:95:3d:ee|Available
-eduroam|72|5 GHz|802.1X|540.0 Mbps|84:23:88:95:3d:ef|Available
-Campus_Guest|55|2.4 GHz|Open (Portal)|72.2 Mbps|84:23:88:95:3d:f0|Available
-Direct_Printer|35|2.4 GHz|WPA2-PSK|11.0 Mbps|da:98:7a:12:34:56|Available"
+NETWORKS="MOJO-JAN-C1-F9|85|5 GHz|WPA2-Personal|1201 Mbps|50:91:e3:75:8b:27|Connected
+MOJO-JAN-B-F7|60|5 GHz|WPA2-Personal|866.7 Mbps|3c:52:a1:05:b6:fe|Available
+MOJO-F2|60|5 GHz|WPA2-Personal|866.7 Mbps|3c:52:a1:05:bb:d2|Available
+MOJO-JAN-C1-F8|60|5 GHz|WPA2-Personal|866.7 Mbps|50:91:e3:75:8b:26|Available
+Mojo-JAN-B-F9|60|5 GHz|WPA2-Personal|866.7 Mbps|3c:52:a1:05:b3:7b|Available
+MOJO-JAN-B-F5|37|5 GHz|WPA2-Personal|866.7 Mbps|3c:52:a1:05:bc:9f|Available"
 
 get_signal_bar() {
     sig=$1
@@ -145,12 +151,12 @@ wifi_connect() {
         printf "Enter network number [1-6] or SSID to connect: "
         read -r choice
         case "$choice" in
-            1) target="Jain_Student" ;;
-            2) target="Jain_Faculty" ;;
-            3) target="Jain_Staff" ;;
-            4) target="eduroam" ;;
-            5) target="Campus_Guest" ;;
-            6) target="Direct_Printer" ;;
+            1) target="MOJO-JAN-C1-F9" ;;
+            2) target="MOJO-JAN-B-F7" ;;
+            3) target="MOJO-F2" ;;
+            4) target="MOJO-JAN-C1-F8" ;;
+            5) target="Mojo-JAN-B-F9" ;;
+            6) target="MOJO-JAN-B-F5" ;;
             *) target="$choice" ;;
         esac
     fi

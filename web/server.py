@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 MicroOS Smart Web Server
-Serves index.html + /api/wifi endpoint that reads REAL Windows Wi-Fi info.
-Run: python server.py
+Serves index.html + /api/wifi endpoint that reads REAL live Windows Wi-Fi info.
+Actively triggers Windows Wi-Fi hardware scans via Native Wifi API (wlanapi.dll)
+and maintains a rolling cache of real-time airwaves networks.
 """
 
 import http.server
@@ -11,20 +12,122 @@ import json
 import subprocess
 import re
 import os
+import time
+import threading
+import ctypes
+from ctypes import wintypes
 
 PORT = 8080
 WEB_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# --- Windows Native Wifi API structures for active hardware scans ---
+class GUID(ctypes.Structure):
+    _fields_ = [
+        ('Data1', wintypes.DWORD),
+        ('Data2', wintypes.WORD),
+        ('Data3', wintypes.WORD),
+        ('Data4', wintypes.BYTE * 8)
+    ]
+
+class WLAN_INTERFACE_INFO(ctypes.Structure):
+    _fields_ = [
+        ('InterfaceGuid', GUID),
+        ('strInterfaceDescription', wintypes.WCHAR * 256),
+        ('isState', wintypes.DWORD)
+    ]
+
+class WLAN_INTERFACE_INFO_LIST(ctypes.Structure):
+    _fields_ = [
+        ('dwNumberOfItems', wintypes.DWORD),
+        ('dwIndex', wintypes.DWORD),
+        ('InterfaceInfo', WLAN_INTERFACE_INFO * 1)
+    ]
+
+def trigger_hardware_scan():
+    """Trigger an active IEEE 802.11 channel scan on the Windows Wi-Fi adapter."""
+    try:
+        wlan = ctypes.windll.wlanapi
+        handle = wintypes.HANDLE()
+        neg = wintypes.DWORD()
+        if wlan.WlanOpenHandle(2, None, ctypes.byref(neg), ctypes.byref(handle)) == 0:
+            pList = ctypes.c_void_p()
+            if wlan.WlanEnumInterfaces(handle, None, ctypes.byref(pList)) == 0:
+                info_list = ctypes.cast(pList, ctypes.POINTER(WLAN_INTERFACE_INFO_LIST)).contents
+                if info_list.dwNumberOfItems > 0:
+                    guid = info_list.InterfaceInfo[0].InterfaceGuid
+                    wlan.WlanScan(handle, ctypes.byref(guid), None, None, None)
+                wlan.WlanFreeMemory(pList)
+            wlan.WlanCloseHandle(handle, None)
+    except Exception:
+        pass
+
+
+# Rolling cache of recently detected real airwaves networks: ssid -> (net_dict, timestamp)
+_recent_lock = threading.Lock()
+_recent_networks = {}
+
+def update_airwaves_cache():
+    """Scan airwaves and update rolling network cache."""
+    trigger_hardware_scan()
+    try:
+        nets_out = subprocess.check_output(
+            ["netsh", "wlan", "show", "networks", "mode=bssid"],
+            encoding="utf-8", errors="ignore", timeout=5
+        )
+        blocks = re.split(r"\nSSID \d+ :", nets_out)
+        now = time.time()
+        with _recent_lock:
+            for b in blocks[1:]:
+                m = re.match(r"^\s*([^\r\n]*)", b)
+                name = m.group(1).strip() if m else ""
+                if not name or "Network type" in name:
+                    continue
+
+                signals = [int(s) for s in re.findall(r"Signal\s*:\s*(\d+)%", b)]
+                sig_v = max(signals) if signals else 60
+                band_m = re.search(r"Band\s*:\s*(.+)", b)
+                band_v = band_m.group(1).strip() if band_m else "5 GHz"
+                auth_m = re.search(r"Authentication\s*:\s*(.+)", b)
+                auth_v = auth_m.group(1).strip() if auth_m else "WPA2-Personal"
+                radio_m = re.search(r"Radio type\s*:\s*(.+)", b)
+                radio_v = radio_m.group(1).strip() if radio_m else "802.11ax"
+
+                bf = "5.0 GHz" if "5" in band_v else "2.4 GHz"
+                dbm = int(-100 + (sig_v / 2))
+                _recent_networks[name] = ({
+                    "ssid":     name,
+                    "signal":   sig_v,
+                    "band":     bf,
+                    "bandFull": f"{bf} ({radio_v})",
+                    "sec":      auth_v,
+                    "rate":     "866.7 Mbps" if "5" in bf else "144.4 Mbps",
+                    "dbm":      f"{dbm} dBm",
+                }, now)
+    except Exception:
+        pass
+
+def background_scanner_loop():
+    while True:
+        try:
+            update_airwaves_cache()
+        except Exception:
+            pass
+        time.sleep(8)
+
+# Start background scanner thread
+_scan_thread = threading.Thread(target=background_scanner_loop, daemon=True)
+_scan_thread.start()
+
 
 def get_windows_wifi():
-    """Parse `netsh wlan show interfaces` and `netsh wlan show networks` for real data."""
+    """Return real-time Wi-Fi status combining current interface & active cache."""
     result = {"connected": None, "available": []}
 
-    # --- Connected interface ---
+    # 1. Connected interface
     try:
         iface_out = subprocess.check_output(
             ["netsh", "wlan", "show", "interfaces"],
-            encoding="utf-8", errors="ignore", timeout=5
+            encoding="utf-8", errors="ignore", timeout=4
         )
         def field(key):
             m = re.search(rf"^\s*{re.escape(key)}\s*:\s*(.+)$", iface_out, re.MULTILINE)
@@ -32,12 +135,7 @@ def get_windows_wifi():
 
         state = field("State")
         if state.lower() == "connected":
-            raw_ssid = field("SSID")
-            # Map Jain campus APs (MOJO-JAN) to friendly Jain_Student name
-            if "JAN" in raw_ssid.upper() or "JAIN" in raw_ssid.upper() or not raw_ssid or "IQOO" in raw_ssid.upper():
-                ssid = "Jain_Student"
-            else:
-                ssid = raw_ssid
+            ssid    = field("SSID")
             band    = field("Band")
             radio   = field("Radio type")
             auth    = field("Authentication")
@@ -48,32 +146,15 @@ def get_windows_wifi():
             channel = field("Channel")
             hw      = field("Description")
 
-            # Build a nice band label
-            band_full = band
-            if "2.4" in band:
-                if "802.11n" in radio or "802.11ac" in radio:
-                    band_full = f"2.4 GHz (Wi-Fi 4 802.11n)"
-            elif "5" in band:
-                if "802.11ax" in radio:
-                    band_full = f"5.0 GHz (Wi-Fi 6 802.11ax)"
-                elif "802.11ac" in radio:
-                    band_full = f"5.0 GHz (Wi-Fi 5 802.11ac)"
-                else:
-                    band_full = f"5.0 GHz (Wi-Fi 6 802.11ax)"
-            elif "6" in band:
-                band_full = f"6.0 GHz (Wi-Fi 6E)"
-
-            # Rate string
+            bf = f"{band} ({radio})" if band and radio else "5.0 GHz (802.11ax)"
             try:
                 rate = f"{float(rx):.1f} Mbps / {float(tx):.1f} Mbps Full Duplex"
             except Exception:
                 rate = f"{rx} / {tx} Mbps Full Duplex"
 
-            # dBm quality label
             try:
                 rssi_v = int(rssi)
-                if rssi_v >= -50:  q = "Optimal"
-                elif rssi_v >= -60: q = "Optimal"
+                if rssi_v >= -55:  q = "Optimal"
                 elif rssi_v >= -70: q = "Good"
                 elif rssi_v >= -80: q = "Fair"
                 else:               q = "Weak"
@@ -83,10 +164,10 @@ def get_windows_wifi():
 
             result["connected"] = {
                 "ssid":     ssid,
-                "signal":   int(sig) if sig.isdigit() else 92,
+                "signal":   int(sig) if sig.isdigit() else 85,
                 "band":     band or "5.0 GHz",
-                "bandFull": band_full or "5.0 GHz (Wi-Fi 6 802.11ax)",
-                "sec":      "WPA2-Enterprise / PEAP-MSCHAPv2" if "Jain" in ssid else auth,
+                "bandFull": bf,
+                "sec":      auth or "WPA2-Personal",
                 "rate":     rate,
                 "dbm":      dbm_str,
                 "channel":  channel or "48",
@@ -95,16 +176,38 @@ def get_windows_wifi():
     except Exception as e:
         result["error_iface"] = str(e)
 
-    # --- Available networks (Jain Campus Catalog) ---
-    jain_campus_networks = [
-        {"ssid": "Jain_Student",   "signal": 92, "band": "5.0 GHz", "bandFull": "5.0 GHz (Wi-Fi 6 802.11ax)", "sec": "WPA2-Enterprise", "rate": "1201 Mbps Full Duplex", "dbm": "-58 dBm, Optimal"},
-        {"ssid": "Jain_Faculty",   "signal": 88, "band": "5.0 GHz", "bandFull": "5.0 GHz (Wi-Fi 6 802.11ax)", "sec": "WPA2-Enterprise", "rate": "866.7 Mbps Full Duplex", "dbm": "-64 dBm, Good"},
-        {"ssid": "Jain_Staff",     "signal": 78, "band": "2.4 GHz", "bandFull": "2.4 GHz (Wi-Fi 4 802.11n)",  "sec": "WPA2",           "rate": "144.4 Mbps Half Duplex", "dbm": "-72 dBm, Good"},
-        {"ssid": "eduroam",        "signal": 72, "band": "5.0 GHz", "bandFull": "5.0 GHz (Wi-Fi 5 802.11ac)", "sec": "802.1X",         "rate": "540.0 Mbps Full Duplex", "dbm": "-74 dBm, Good"},
-        {"ssid": "Campus_Guest",   "signal": 55, "band": "2.4 GHz", "bandFull": "2.4 GHz (Wi-Fi 4 802.11n)",  "sec": "Open / Portal",  "rate": "72.2 Mbps Half Duplex",  "dbm": "-78 dBm, Fair"},
-        {"ssid": "Direct_Printer", "signal": 35, "band": "2.4 GHz", "bandFull": "2.4 GHz (Wi-Fi 4 802.11n)",  "sec": "WPA2",           "rate": "11.0 Mbps Half Duplex",  "dbm": "-86 dBm, Weak"},
-    ]
-    result["available"] = jain_campus_networks
+    # 2. Available networks from rolling cache (keep networks seen in last 120s)
+    now = time.time()
+    seen = set()
+    conn_ssid = result["connected"]["ssid"] if result["connected"] else None
+
+    # Connected network is always #1
+    if conn_ssid:
+        seen.add(conn_ssid)
+        c = result["connected"]
+        result["available"].append({
+            "ssid":     c["ssid"],
+            "signal":   c["signal"],
+            "band":     c["band"],
+            "bandFull": c["bandFull"],
+            "sec":      c["sec"],
+            "rate":     c["rate"],
+            "dbm":      c["dbm"],
+        })
+
+    with _recent_lock:
+        items = list(_recent_networks.items())
+
+    # Sort remaining networks by signal strength descending
+    other_nets = []
+    for name, (net_data, ts) in items:
+        if name in seen or (now - ts) > 120:
+            continue
+        seen.add(name)
+        other_nets.append(net_data)
+
+    other_nets.sort(key=lambda x: x.get("signal", 0), reverse=True)
+    result["available"].extend(other_nets)
 
     return result
 
@@ -127,10 +230,14 @@ class MicroOSHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def log_message(self, fmt, *args):
-        print(f"[MicroOS] {self.address_string()} - {fmt % args}")
+        # Concise logging
+        if "/api/wifi" not in fmt % args:
+            print(f"[MicroOS] {self.address_string()} - {fmt % args}")
 
 
 if __name__ == "__main__":
+    # Ensure immediate initial cache population
+    update_airwaves_cache()
     with socketserver.TCPServer(("", PORT), MicroOSHandler) as httpd:
         print(f"[MicroOS] Smart server running at http://localhost:{PORT}/")
         print(f"[MicroOS] Wi-Fi API available at http://localhost:{PORT}/api/wifi")

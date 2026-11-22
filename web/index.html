@@ -1369,23 +1369,13 @@ micro@microos:~$ </div>
       `).join('');
     }
 
-    // Static nearby networks (always shown as "in range" background)
-    const staticNearbyNetworks = [
-      { name: 'Jain_Student',   signal: 92, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)', sec: 'WPA2-Enterprise', rate: '1201 Mbps Full Duplex', dbm: '-58 dBm, Optimal', ip: '10.0.2.15' },
-      { name: 'Jain_Faculty',   signal: 88, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)', sec: 'WPA2-Enterprise', rate: '866.7 Mbps Full Duplex', dbm: '-64 dBm, Good',    ip: null },
-      { name: 'Jain_Staff',     signal: 78, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '144.4 Mbps Half Duplex', dbm: '-72 dBm, Good',    ip: null },
-      { name: 'eduroam',        signal: 72, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: '802.1X',         rate: '540.0 Mbps Full Duplex', dbm: '-74 dBm, Good',    ip: null },
-      { name: 'Campus_Guest',   signal: 55, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'Open / Portal',  rate: '72.2 Mbps Half Duplex',  dbm: '-78 dBm, Fair',    ip: null },
-      { name: 'Direct_Printer', signal: 35, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '11.0 Mbps Half Duplex',  dbm: '-86 dBm, Weak',    ip: null },
-    ];
-
     async function loadRealWifi() {
       try {
         const res = await fetch('/api/wifi', { cache: 'no-store' });
         if (!res.ok) throw new Error('API unavailable');
         const data = await res.json();
 
-        // Start with real scanned networks from Windows
+        // Use real scanned networks directly from Windows
         const avail = (data.available || []).map(n => ({
           name:     n.ssid,
           signal:   n.signal,
@@ -1395,12 +1385,12 @@ micro@microos:~$ </div>
           rate:     n.rate,
           dbm:      n.dbm,
           ip:       null,
-          real:     true,
         }));
 
-        // Overlay connected network with full detail
         if (data.connected) {
           const c = data.connected;
+          currentConnected = c.ssid;
+          const idx = avail.findIndex(n => n.name === c.ssid);
           const connNet = {
             name:     c.ssid,
             signal:   c.signal,
@@ -1409,35 +1399,20 @@ micro@microos:~$ </div>
             sec:      c.sec,
             rate:     c.rate,
             dbm:      c.dbm,
-            ip:       '(Host Bridged)',
-            real:     true,
+            ip:       '(Host Connected)',
           };
-          const idx = avail.findIndex(n => n.name === c.ssid);
           if (idx >= 0) avail[idx] = connNet;
           else avail.unshift(connNet);
-          currentConnected = c.ssid;
         }
-
-        // Merge in static nearby networks (skip ones already from real scan)
-        const realNames = new Set(avail.map(n => n.name));
-        staticNearbyNetworks.forEach(sn => {
-          if (!realNames.has(sn.name)) avail.push(sn);
-        });
 
         networks = avail;
         renderWifiList();
         updateConnectedCard();
 
-        const realCount = avail.filter(n => n.real).length;
         document.getElementById('wifiScanStatus').textContent =
-          `Last scan: ${new Date().toLocaleTimeString()} — Connected to Jain University Wi-Fi (${networks.length} networks)`;
+          `Live Scan: ${new Date().toLocaleTimeString()} — ${networks.length} network(s) visible in range`;
       } catch (err) {
-        // Fallback: show Jain_Student as default
-        networks = [...staticNearbyNetworks];
-        currentConnected = 'Jain_Student';
-        renderWifiList();
-        updateConnectedCard();
-        document.getElementById('wifiScanStatus').textContent = `Auto-detected Jain Campus — ${new Date().toLocaleTimeString()}`;
+        document.getElementById('wifiScanStatus').textContent = `Waiting for network scan…`;
       }
     }
 

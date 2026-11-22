@@ -5,9 +5,13 @@ echo "[rcS] Initializing MicroOS environment..."
 # Seed random generator
 [ -f /dev/urandom ] && dd if=/dev/urandom of=/dev/null count=1 2>/dev/null || true
 
-# Initialize Wi-Fi network state (default to host active wireless connection)
+# Initialize Wi-Fi network state (synced with host active wireless connection)
 mkdir -p /run /var/run /var/lib/iwd
-echo "Jain_Student" > /run/wifi.state
+if [ -f /etc/wifi_ssid ]; then
+    cp /etc/wifi_ssid /run/wifi.state
+else
+    echo "MOJO-JAN-C1-F9" > /run/wifi.state
+fi
 
 # Bring up network interface via DHCP
 ifconfig lo 127.0.0.1 up 2>/dev/null || ip link set lo up 2>/dev/null || true

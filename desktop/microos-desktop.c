@@ -1,17 +1,16 @@
 /*
- * Vyron MicroOS — Modern Desktop Environment v5.2 (Pixel-Faithful Edition)
- * Inspired by the Vyron OS reference specification
+ * MicroOS — Modern Desktop Environment v5.2 (Pixel-Faithful Edition)
  *
  * Visual Architecture:
  *   - Acrylic Top Bar:
  *       [*] Cyan Logo | Options v | Path breadcrumbs | [ Date & Time ] | (vol) | Red Power (X)
  *   - Exact 2-Column Desktop Icons Grid (Left Side, 22 apps):
- *       Col 1 (x=2):  File System, Home, Vyron Developer, Vyron System Mon,
- *                     Vyron Storage Exp, Vyron Settings, Vyron Network En,
- *                     Vyron Microkernel, Vyron Hardware &, Producer-Consumer,
+ *       Col 1 (x=2):  File System, Home, Developer Terminal, System Monitor,
+ *                     Storage Explorer, Settings, Network Explorer,
+ *                     Microkernel, Hardware & Devices, Producer-Consumer,
  *                     Boot Benchmark
- *       Col 2 (x=27): Vyron Files, Vyron Web Browser, APT Package Mgr,
- *                     Vyron Wi-Fi Mgr, Snap Store, Snake Game,
+ *       Col 2 (x=27): Files, Web Browser, APT Package Mgr,
+ *                     Wi-Fi Manager, Snap Store, Snake Game,
  *                     Retro Arcade Hub, Tetris Arcade, 2048 Puzzle,
  *                     Pong Arcade, Minesweeper
  *       Row spacing:  Every 2 rows (r = 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
@@ -130,21 +129,21 @@ static const DesktopApp APPS[] = {
     /* ── Column 1 (Left Column, x = 2) ── */
     { "[##]",  "File System",        C_BADGE_WHITE,  0, 0,  APP_FILESYSTEM  },
     { "[DIR]", "Home",               C_BADGE_BLUE,   0, 1,  APP_HOME        },
-    { "[>_]",  "Vyron Developer",    C_BADGE_CYAN,   0, 2,  APP_DEV         },
-    { "[SYS]", "Vyron System Mon",   C_BADGE_CYAN,   0, 3,  APP_SYSMON      },
-    { "[DRV]", "Vyron Storage Exp",  C_BADGE_CYAN,   0, 4,  APP_STORAGE     },
-    { "[SET]", "Vyron Settings",     C_BADGE_PURPLE, 0, 5,  APP_SETTINGS    },
-    { "[NET]", "Vyron Network En",   C_BADGE_CYAN,   0, 6,  APP_NETWORK     },
-    { "[CPU]", "Vyron Microkernel",  C_BADGE_CYAN,   0, 7,  APP_MICROKERNEL },
-    { "[HW ]", "Vyron Hardware &",   C_BADGE_RED,    0, 8,  APP_HARDWARE    },
+    { "[>_]",  "Developer Terminal", C_BADGE_CYAN,   0, 2,  APP_DEV         },
+    { "[SYS]", "System Monitor",     C_BADGE_CYAN,   0, 3,  APP_SYSMON      },
+    { "[DRV]", "Storage Explorer",   C_BADGE_CYAN,   0, 4,  APP_STORAGE     },
+    { "[SET]", "Settings",           C_BADGE_PURPLE, 0, 5,  APP_SETTINGS    },
+    { "[NET]", "Network Explorer",   C_BADGE_CYAN,   0, 6,  APP_NETWORK     },
+    { "[CPU]", "Microkernel Arch",   C_BADGE_CYAN,   0, 7,  APP_MICROKERNEL },
+    { "[HW ]", "Hardware & Devices", C_BADGE_RED,    0, 8,  APP_HARDWARE    },
     { "[PRD]", "Producer-Consumer",  C_BADGE_GREEN,  0, 9,  APP_PRODUCER    },
     { "[BNK]", "Boot Benchmark",     C_BADGE_ORANGE, 0, 10, APP_BENCHMARK   },
 
     /* ── Column 2 (Right Column, x = 27) ── */
-    { "[DIR]", "Vyron Files",        C_BADGE_ORANGE, 1, 0,  APP_FILES       },
-    { "[WEB]", "Vyron Web Browser",  C_BADGE_ORANGE, 1, 1,  APP_BROWSER     },
+    { "[DIR]", "Files",              C_BADGE_ORANGE, 1, 0,  APP_FILES       },
+    { "[WEB]", "Web Browser",        C_BADGE_ORANGE, 1, 1,  APP_BROWSER     },
     { "[PKG]", "APT Package Mgr",    C_BADGE_GREEN,  1, 2,  APP_APT         },
-    { "((o))", "Vyron Wi-Fi Mgr",    C_BADGE_CYAN,   1, 3,  APP_WIFI        },
+    { "((o))", "Wi-Fi Manager",      C_BADGE_CYAN,   1, 3,  APP_WIFI        },
     { "[SNP]", "Snap Store",         C_BADGE_ORANGE, 1, 4,  APP_SNAPSTORE   },
     { "[SNK]", "Snake Game",         C_BADGE_GREEN,  1, 5,  APP_SNAKE       },
     { "[ARC]", "Retro Arcade Hub",   C_BADGE_PURPLE, 1, 6,  APP_ARCADE      },
@@ -181,7 +180,7 @@ static int focused_win = -1;
 static int options_open = 0;
 static int options_item = 0;
 static const char *options_list[] = {
-    "About Vyron MicroOS",
+    "About MicroOS",
     "Retro Arcade Games (Snake, Tetris)",
     "Producer-Consumer Simulation",
     "Boot Time Benchmark",
@@ -462,7 +461,7 @@ static void draw_dock(void)
     /* Pinned App Tiles */
     struct { const char *txt; int pair; } tiles[] = {
         { "[*]", C_DOCK_TILE_MAG },  /* Start/Options */
-        { "[V]", C_DOCK_TILE_BLU },  /* About */
+        { "[M]", C_DOCK_TILE_BLU },  /* About MicroOS */
         { "[F]", C_DOCK_TILE_ORG },  /* Files */
         { "[>]", C_DOCK_TILE_CYN },  /* Terminal */
         { "[G]", C_DOCK_TILE_MAG },  /* Retro Arcade Games */
@@ -627,7 +626,7 @@ static void build_wifi(char *buf, int sz)
 {
     int connected = (wifi_ssid[0] != '\0');
     snprintf(buf, sz,
-        "Vyron Wi-Fi Quick Settings & Wireless Networks\n"
+        "Wi-Fi Quick Settings & Wireless Networks\n"
         "====================================================================\n\n"
         "Wireless Radio : [%s]  |  Hardware: Realtek RTL8852BE WiFi 6\n"
         "Interface Link : wlan0 / e1000 (Bridged NAT to Host Network)\n\n"
@@ -663,7 +662,7 @@ static void build_wifi(char *buf, int sz)
 static void build_sysmon(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "Vyron System Monitor & Performance Metrics\n"
+        "System Monitor & Performance Metrics\n"
         "====================================================================\n\n"
         "PROCESSOR UTILIZATION:\n"
         "  CPU Model : 13th Gen Intel(R) Core(TM) i7-13650HX\n"
@@ -675,7 +674,7 @@ static void build_sysmon(char *buf, int sz)
         "  Free RAM  : 7120 MB (91.4%% Headroom Available)\n"
         "  RAM Bar   : [||||                        ] 8.6%% In Use\n\n"
         "STORAGE / SWAP:\n"
-        "  Live ISO  : 32.9 MB / 50.0 MB Hard Limit (65.9%% Budget Used [PASS])\n"
+        "  Live ISO  : 31.4 MB / 50.0 MB Hard Limit (62.9%% Budget Used [PASS])\n"
         "  Swap RAM  : 2048 MB (0 MB In Use)\n\n"
         "Press [Esc] or [Ctrl+W] to close window.\n");
 }
@@ -683,7 +682,7 @@ static void build_sysmon(char *buf, int sz)
 static void build_microkernel(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "Vyron Microkernel & Operating System Architecture\n"
+        "Microkernel Architecture & System Design\n"
         "====================================================================\n\n"
         "KERNEL SUBSYSTEM:\n"
         "  Kernel Core    : Linux 7.0.0-43-generic (Modular Micro-Profile)\n"
@@ -700,7 +699,7 @@ static void build_microkernel(char *buf, int sz)
 static void build_storage(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "Vyron Storage Explorer & Disk Controller Map\n"
+        "Storage Explorer & Disk Controller Map\n"
         "====================================================================\n\n"
         "DETECTED CONTROLLERS & DRIVES:\n"
         "  /dev/sda  - SATA Virtual Disk (AHCI Primary)  : 722 MB\n"
@@ -717,7 +716,7 @@ static void build_storage(char *buf, int sz)
 static void build_settings(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "Vyron Settings & Control Panel\n"
+        "Settings & Control Panel\n"
         "====================================================================\n\n"
         "CONFIGURATION MODULES:\n"
         "  [1] Personalization : Deep Midnight & Glowing Magenta Theme\n"
@@ -727,16 +726,16 @@ static void build_settings(char *buf, int sz)
         "  [5] Software Stores : Snap Store & Debian APT Package Centers\n\n"
         "USER PROFILE:\n"
         "  Username  : micro / user (Administrator Rights)\n"
-        "  Hostname  : microos / vyron\n");
+        "  Hostname  : microos\n");
 }
 
 static void build_browser(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "Vyron Web Browser (HTML5 & Fast Text Mode)\n"
+        "Web Browser (HTML5 & Fast Text Mode)\n"
         "====================================================================\n\n"
         "CURRENT URL: https://duckduckgo.com\n\n"
-        "Welcome to the Vyron Web Portal!\n\n"
+        "Welcome to the MicroOS Web Portal!\n\n"
         "Quick Bookmarks:\n"
         "  [1] Debian Package Archives  : https://packages.debian.org\n"
         "  [2] Ubuntu Snapcraft Store   : https://snapcraft.io\n"
@@ -776,16 +775,16 @@ static void build_files(char *buf, int sz, const char *path, const char *title)
 static void build_about(char *buf, int sz)
 {
     snprintf(buf, sz,
-        "About Vyron MicroOS\n"
+        "About MicroOS\n"
         "====================================================================\n\n"
         "  __  __ _               ___  ___\n"
         " |  \\/  (_) ___ _ __ ___/ _ \\/ __|\n"
         " | |\\/| | |/ __| '__/ _ \\ | | \\__ \\\n"
         " |_|  |_|_|\\___/_|  \\___/\\___/|___/\n\n"
-        "Edition      : Vyron Desktop Modern Edition v5.2\n"
+        "Edition      : MicroOS Desktop Modern Edition v5.2\n"
         "Architecture : x86_64 Dual Hybrid (BIOS & UEFI Bootable)\n"
         "Kernel       : Linux 7.0.0-43-generic\n"
-        "Live ISO Size: 32.9 MB (< 50 MB budget)\n"
+        "Live ISO Size: 31.45 MB (< 50 MB budget)\n"
         "Lead Author  : M. Srivas [25BTRCL143] - Department: AIML\n\n"
         "Integrated Software:\n"
         "  - POSIX Producer-Consumer Synchronization Simulator\n"
@@ -816,27 +815,27 @@ static void open_window(int type)
 
     switch (type) {
         case APP_WIFI:
-            strncpy(w->title, "Vyron Wi-Fi Quick Settings", sizeof(w->title)-1);
+            strncpy(w->title, "Wi-Fi Quick Settings", sizeof(w->title)-1);
             build_wifi(w->content, sizeof(w->content));
             break;
         case APP_SYSMON:
-            strncpy(w->title, "Vyron System Monitor", sizeof(w->title)-1);
+            strncpy(w->title, "System Monitor", sizeof(w->title)-1);
             build_sysmon(w->content, sizeof(w->content));
             break;
         case APP_MICROKERNEL:
-            strncpy(w->title, "Vyron Microkernel Architecture", sizeof(w->title)-1);
+            strncpy(w->title, "Microkernel Architecture", sizeof(w->title)-1);
             build_microkernel(w->content, sizeof(w->content));
             break;
         case APP_STORAGE:
-            strncpy(w->title, "Vyron Storage Explorer", sizeof(w->title)-1);
+            strncpy(w->title, "Storage Explorer", sizeof(w->title)-1);
             build_storage(w->content, sizeof(w->content));
             break;
         case APP_SETTINGS:
-            strncpy(w->title, "Vyron Settings", sizeof(w->title)-1);
+            strncpy(w->title, "Settings", sizeof(w->title)-1);
             build_settings(w->content, sizeof(w->content));
             break;
         case APP_BROWSER:
-            strncpy(w->title, "Vyron Web Browser", sizeof(w->title)-1);
+            strncpy(w->title, "Web Browser", sizeof(w->title)-1);
             build_browser(w->content, sizeof(w->content));
             break;
         case APP_FILESYSTEM:
@@ -845,11 +844,11 @@ static void open_window(int type)
             break;
         case APP_HOME:
         case APP_FILES:
-            strncpy(w->title, "Vyron Files (/root)", sizeof(w->title)-1);
+            strncpy(w->title, "Files (/root)", sizeof(w->title)-1);
             build_files(w->content, sizeof(w->content), "/root", "Files");
             break;
         case APP_OPTIONS:
-            strncpy(w->title, "About Vyron MicroOS", sizeof(w->title)-1);
+            strncpy(w->title, "About MicroOS", sizeof(w->title)-1);
             build_about(w->content, sizeof(w->content));
             break;
         default:
@@ -877,7 +876,7 @@ static void launch_app(const char *cmd, const char *name)
     def_prog_mode();
     endwin();
     printf("\033[H\033[2J");
-    printf("\033[1;35m[Vyron App Launcher]\033[0m Starting %s...\n\n", name);
+    printf("\033[1;35m[MicroOS App Launcher]\033[0m Starting %s...\n\n", name);
     int ret = system(cmd);
     (void)ret;
     printf("\n\033[1;33mApplication finished.\033[0m Press [Enter] to return to Desktop...");
@@ -904,7 +903,7 @@ static void launch_terminal(void)
     printf(" | |\\/| | |/ __| '__/ _ \\ | | \\__ \\\n");
     printf(" |_|  |_|_|\\___/_|  \\___/\\___/|___/\n");
     printf("\033[0m\n");
-    printf("\033[1;36mVyron Developer Terminal\033[0m -- type \033[1mexit\033[0m to return to Desktop\n\n");
+    printf("\033[1;36mMicroOS Developer Terminal\033[0m -- type \033[1mexit\033[0m to return to Desktop\n\n");
     int ret = system("/bin/sh -l");
     (void)ret;
 
@@ -1165,7 +1164,7 @@ int main(void)
 
     if (!has_colors()) {
         endwin();
-        fprintf(stderr, "Vyron Desktop requires a color terminal.\n");
+        fprintf(stderr, "MicroOS Desktop requires a color terminal.\n");
         return 1;
     }
     init_colors();
@@ -1186,6 +1185,6 @@ int main(void)
 
     endwin();
     printf("\033[H\033[2J");
-    printf("Returned to Vyron MicroOS terminal shell.\nType 'desktop' to restart GUI.\n\n");
+    printf("Returned to MicroOS terminal shell.\nType 'desktop' to restart GUI.\n\n");
     return 0;
 }

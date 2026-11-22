@@ -1,1 +1,2 @@
-/bin/busybox
+#!/bin/sh
+echo "srivas"

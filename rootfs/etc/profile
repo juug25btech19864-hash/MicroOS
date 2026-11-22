@@ -1,20 +1,16 @@
 # /etc/profile for MicroOS v3.0
-# System-wide environment, modern terminal styling, and command aliases
-
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games"
 export TERMINFO="/etc/terminfo"
 export TERM="${TERM:-linux}"
-export HOME="/root"
-export USER="root"
-export LOGNAME="root"
+export HOME="/home/srivas"
+export USER="srivas"
+export LOGNAME="srivas"
 export SHELL="/bin/sh"
 export HOSTNAME="microos"
 
-# Modern prompt
 ESC=$(printf '\033')
-export PS1="${ESC}[1;32mroot@microos${ESC}[1;34m:${ESC}[1;36m\w${ESC}[1;32m# ${ESC}[0m"
+export PS1="${ESC}[1;36msrivas@microos${ESC}[1;34m:\w${ESC}[1;32m$ ${ESC}[0m"
 
-# Useful aliases
 alias cls='clear'
 alias ll='ls -la'
 alias la='ls -A'
@@ -25,7 +21,6 @@ alias restart='reboot'
 alias shutdown='poweroff'
 alias gui='desktop'
 
-# Only auto-launch desktop on the FIRST login (not from within terminal app)
 if [ -t 0 ] && [ -z "$MICROOS_INITIALIZED" ] && [ -z "$MICROOS_TERMINAL" ]; then
     export MICROOS_INITIALIZED=1
     printf "${ESC}[H${ESC}[2J"

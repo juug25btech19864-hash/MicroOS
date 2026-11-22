@@ -933,9 +933,9 @@
 MicroOS v5.2 (x86_64 Long Mode)
 Type 'help' for available commands.
 
-micro@microos:~$ </div>
+srivas@microos:~$ </div>
       <div class="terminal-input-row">
-        <span style="color: #00e676;">micro@microos:~$</span>
+        <span style="color: #00e676;">srivas@microos:~$</span>
         <input type="text" class="terminal-input" id="termInput" autofocus onkeydown="handleTerminalKey(event)">
       </div>
     </div>
@@ -1688,13 +1688,13 @@ micro@microos:~$ </div>
     /* 11. Terminal Logic — Full interactive Linux shell */
     const termHistory = [];
     let termHistIdx = -1;
-    let termCwd = '/home/micro';
-    let termUser = 'micro';
+    let termCwd = '/home/srivas';
+    let termUser = 'srivas';
     let termUid = 1000;
     const termFS = {
       '/': ['bin','boot','dev','etc','home','lib','mnt','proc','root','sbin','sys','tmp','usr','var'],
-      '/home': ['micro'],
-      '/home/micro': ['Desktop','Documents','Downloads','Music','Pictures','Videos','.profile','.bashrc'],
+      '/home': ['srivas'],
+      '/home/srivas': ['Desktop','Documents','Downloads','Music','Pictures','Videos','.profile','.bashrc'],
       '/root': ['Desktop','Documents','.profile'],
       '/etc': ['passwd','group','hostname','resolv.conf','profile','hosts','network','init.d'],
       '/usr': ['bin','lib','share','local','games'],
@@ -1708,14 +1708,14 @@ micro@microos:~$ </div>
     function termPrint(out, text) { out.innerText += text + '\n'; }
 
     function getPrompt() {
-      const displayDir = termCwd === '/home/micro' ? '~' : (termCwd === '/root' && termUser === 'root' ? '~' : termCwd);
+      const displayDir = termCwd === '/home/srivas' ? '~' : (termCwd === '/root' && termUser === 'root' ? '~' : termCwd);
       const symbol = termUser === 'root' ? '#' : '$';
       return `${termUser}@microos:${displayDir}${symbol} `;
     }
 
     function resolvePath(p) {
-      if (!p || p === '~') return termUser === 'root' ? '/root' : '/home/micro';
-      if (p.startsWith('~/')) return (termUser === 'root' ? '/root/' : '/home/micro/') + p.slice(2);
+      if (!p || p === '~') return termUser === 'root' ? '/root' : '/home/srivas';
+      if (p.startsWith('~/')) return (termUser === 'root' ? '/root/' : '/home/srivas/') + p.slice(2);
       if (!p.startsWith('/')) return (termCwd.replace(/\/$/, '') + '/' + p).replace(/\/+/g, '/');
       return p.replace(/\/+/g,'/').replace(/\/$/, '') || '/';
     }
@@ -1760,7 +1760,6 @@ micro@microos:~$ </div>
       const effectiveUser = isSudo ? 'root' : termUser;
       const cmd = (tokens[0] || '').toLowerCase();
       const args = tokens.slice(1).map(a => a.replace(/^['"]|['"]$/g, ''));
-      const fullCmd = tokens.join(' ');
       const now = new Date();
       const upMins = Math.max(1, Math.floor((now - new Date(now.toDateString())) / 60000));
 
@@ -1789,13 +1788,14 @@ micro@microos:~$ </div>
           if (effectiveUser === 'root') {
             termPrint(out, 'uid=0(root) gid=0(root) groups=0(root),4(adm),10(wheel)');
           } else {
-            termPrint(out, 'uid=1000(micro) gid=1000(micro) groups=1000(micro),4(adm),24(cdrom),27(sudo),100(users)');
+            termPrint(out, 'uid=1000(srivas) gid=1000(srivas) groups=1000(srivas),4(adm),24(cdrom),27(sudo),100(users)');
           }
           break;
 
         case 'su':
           termUser = 'root';
           termUid = 0;
+          termPrint(out, 'Password: ');
           termPrint(out, 'Switched to root session.');
           break;
 
@@ -1813,7 +1813,7 @@ micro@microos:~$ </div>
           break;
 
         case 'echo':
-          termPrint(out, args.join(' ').replace(/\$USER/g, effectiveUser).replace(/\$HOME/g, effectiveUser === 'root' ? '/root' : '/home/micro').replace(/\$HOSTNAME/g, 'microos').replace(/\$SHELL/g, '/bin/sh'));
+          termPrint(out, args.join(' ').replace(/\$USER/g, effectiveUser).replace(/\$HOME/g, effectiveUser === 'root' ? '/root' : '/home/srivas').replace(/\$HOSTNAME/g, 'microos').replace(/\$SHELL/g, '/bin/sh'));
           break;
 
         case 'pwd':
@@ -1821,7 +1821,7 @@ micro@microos:~$ </div>
           break;
 
         case 'cd': {
-          const target = args[0] ? resolvePath(args[0]) : (effectiveUser === 'root' ? '/root' : '/home/micro');
+          const target = args[0] ? resolvePath(args[0]) : (effectiveUser === 'root' ? '/root' : '/home/srivas');
           if (termFS[target] || target === '/' || target === '/home' || target === '/etc' || target === '/usr' || target === '/var' || target === '/tmp' || target === '/proc' || target === '/dev') {
             termCwd = target;
           } else {
@@ -1845,7 +1845,7 @@ micro@microos:~$ </div>
         case 'cat':
           if (!args[0]) { termPrint(out, 'cat: missing operand'); break; }
           if (args[0].includes('passwd')) {
-            termPrint(out, 'root:x:0:0:root:/root:/bin/sh\nmicro:x:1000:1000:micro:/home/micro:/bin/sh\nnobody:x:65534:65534:nobody:/:/bin/sh');
+            termPrint(out, 'root:x:0:0:root:/root:/bin/sh\nsrivas:x:1000:1000:M Srivas:/home/srivas:/bin/sh\nnobody:x:65534:65534:nobody:/:/bin/sh');
           } else if (args[0].includes('hostname')) {
             termPrint(out, 'microos');
           } else if (args[0].includes('resolv')) {
@@ -1853,7 +1853,7 @@ micro@microos:~$ </div>
           } else if (args[0].includes('hosts')) {
             termPrint(out, '127.0.0.1   localhost\n127.0.1.1   microos');
           } else if (args[0].includes('profile')) {
-            termPrint(out, 'export PATH="/usr/local/bin:/usr/bin:/bin"\nexport USER=micro');
+            termPrint(out, 'export PATH="/usr/local/bin:/usr/bin:/bin"\nexport USER=srivas\nexport HOME=/home/srivas');
           } else {
             termPrint(out, `cat: ${args[0]}: No such file or directory`);
           }
@@ -2002,8 +2002,9 @@ micro@microos:~$ </div>
           termPrint(out, '   /     \\       ---------------------------');
           termPrint(out, '  | () () |      OS:       MicroOS 5.2 (x86_64)');
           termPrint(out, '   \\  ^  /       Kernel:   7.0.0-43-generic');
+          termPrint(out, '    |||||        User:     srivas@microos');
           termPrint(out, '    |||||        Uptime:   ' + upMins + ' minutes');
-          termPrint(out, '    |||||        Shell:    ash (BusyBox 1.37)');
+          termPrint(out, '                 Shell:    ash (BusyBox 1.37)');
           termPrint(out, '                 Memory:   638MB / 1024MB');
           termPrint(out, '                 CPU:      x86_64 @ 2.4 GHz');
           break;

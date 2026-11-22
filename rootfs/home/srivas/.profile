@@ -1,0 +1,6 @@
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/games"
+export HOME="/home/srivas"
+export USER="srivas"
+export LOGNAME="srivas"
+export HOSTNAME="microos"
+export PS1="\033[1;36msrivas@microos\033[1;34m:\w\033[1;32m$ \033[0m"

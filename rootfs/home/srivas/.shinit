@@ -1,0 +1,19 @@
+whoami() {
+    echo "srivas"
+}
+who() {
+    if [ "$1" = "am" ] && [ "$2" = "i" ]; then
+        echo "srivas"
+    else
+        echo "srivas    tty1         $(date 2>/dev/null)"
+    fi
+}
+alias cls='clear'
+alias ll='ls -la'
+alias la='ls -A'
+alias l='ls -CF'
+alias info='uname -a'
+alias netinfo='ifconfig'
+alias restart='reboot'
+alias shutdown='poweroff'
+alias gui='desktop'

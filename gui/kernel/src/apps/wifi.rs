@@ -22,7 +22,7 @@ pub const REAL_NETWORKS: [WifiNetwork; 5] = [
         band: "5.0 GHz (802.11ax)",
     },
     WifiNetwork {
-        ssid: "Bharath-5G-Hotspot",
+        ssid: "Srivas-5G-Hotspot",
         bssid: "A8:E2:91:95:88:56",
         signal: 92,
         security: "WPA3-Personal",

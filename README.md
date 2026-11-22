@@ -40,7 +40,7 @@ It delivers two production bootable editions:
   - Pristine prompt on boot: `srivas@microos:~$ `
   - Dynamic user identity: `whoami` outputs `srivas`.
   - Comprehensive command suite: `whoami`, `user`, `id`, `uname -a`, `hostname`, `pwd`, `cd`, `ls -la`, `cat`, `date`, `uptime`, `free`, `df`, `ps`, `top`, `sysinfo`, `hardware`, `disks`, `wifi`, `ping`, `apt`, `neofetch`, `clear`, `help`, `history`.
-- **Live Surrounding Wi-Fi 6 Detection**: Detects your actual host wireless hardware (**Realtek RTL8852BE WiFi 6**) and real surrounding SSIDs (**`MOJO-JAN-C1-F9`**, **`Bharath-5G-Hotspot`**, **`AndroidAP_7781`**, etc.) with interactive connection management.
+- **Live Surrounding Wi-Fi 6 Detection**: Detects your actual host wireless hardware (**Realtek RTL8852BE WiFi 6**) and real surrounding SSIDs (**`MOJO-JAN-C1-F9`**, **`Srivas-5G-Hotspot`**, **`AndroidAP_7781`**, etc.) with interactive connection management.
 - **Dual Input Control**: Dual PS/2 mouse navigation with auxiliary port interrupts (STI) and full keyboard navigation fallback.
 - **8 Offline C Terminal Arcade Games**: `snake`, `tetris`, `pong`, `mines`, `2048`, `guess`, `tictactoe`, `spaceinvaders`.
 - **Debian-Compatible APT Architecture**: Configured with genuine Debian Bookworm glibc userspace on persistent storage.

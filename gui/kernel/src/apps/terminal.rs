@@ -19,7 +19,7 @@ impl TerminalApp {
         Self {
             history: Vec::new(),
             input: String::new(),
-            cwd: String::from("/home/bharath"),
+            cwd: String::from("/home/srivas"),
             cmd_history: Vec::new(),
             pending_launch: None,
         }
@@ -69,10 +69,10 @@ impl TerminalApp {
         let full_cmd = self.input.trim().to_string();
         self.input.clear();
 
-        let prompt_display = if self.cwd == "/home/bharath" {
-            String::from("bharath@microos:~$")
+        let prompt_display = if self.cwd == "/home/srivas" {
+            String::from("srivas@microos:~$")
         } else {
-            format!("bharath@microos:{}$", self.cwd)
+            format!("srivas@microos:{}$", self.cwd)
         };
 
         if full_cmd.is_empty() {
@@ -95,22 +95,22 @@ impl TerminalApp {
 
         match cmd_lower.as_str() {
             "whoami" => {
-                self.push_line("bharath", Color::WHITE);
+                self.push_line("srivas", Color::WHITE);
             }
             "id" => {
-                self.push_line("uid=1000(bharath) gid=1000(bharath) groups=1000(bharath),27(sudo),100(users)", Color::WHITE);
+                self.push_line("uid=1000(srivas) gid=1000(srivas) groups=1000(srivas),27(sudo),100(users)", Color::WHITE);
             }
             "user" | "userinfo" => {
                 self.push_line("=== Current User Profile ===", Color::ACCENT_CYAN);
-                self.push_line("Username    : bharath (UID: 1000, GID: 1000)", Color::WHITE);
-                self.push_line("Full Name   : Bharath - MicroOS Administrator", Color::WHITE);
-                self.push_line("Home Dir    : /home/bharath", Color::WHITE);
+                self.push_line("Username    : srivas (UID: 1000, GID: 1000)", Color::WHITE);
+                self.push_line("Full Name   : M. Srivas - MicroOS Administrator (25BTRCL143, AIML)", Color::WHITE);
+                self.push_line("Home Dir    : /home/srivas", Color::WHITE);
                 self.push_line("Shell       : /bin/bash (Interactive GUI Terminal v5.2)", Color::WHITE);
                 self.push_line("Privileges  : sudo, wheel, adm, cdrom, dip, plugdev", Color::WHITE);
                 self.push_line("Status      : Active & Authenticated (Desktop Console)", Color::TERMINAL_GREEN);
             }
             "who" => {
-                self.push_line("bharath  tty1         2026-11-23 02:00 (:0)", Color::WHITE);
+                self.push_line("srivas  tty1         2026-11-23 02:00 (:0)", Color::WHITE);
             }
             "sudo" => {
                 if args.is_empty() {
@@ -120,7 +120,7 @@ impl TerminalApp {
                 } else if args[0].eq_ignore_ascii_case("id") {
                     self.push_line("uid=0(root) gid=0(root) groups=0(root)", Color::WHITE);
                 } else {
-                    self.push_line(format!("[sudo] password for bharath: ********"), Color::MUTED_TEXT);
+                    self.push_line(format!("[sudo] password for srivas: ********"), Color::MUTED_TEXT);
                     self.push_line(format!("Executed '{}' with superuser privileges (root).", args.join(" ")), Color::TERMINAL_GREEN);
                 }
             }
@@ -146,17 +146,17 @@ impl TerminalApp {
                 self.push_line(self.cwd.clone(), Color::WHITE);
             }
             "cd" => {
-                if args.is_empty() || args[0] == "~" || args[0] == "/home/bharath" {
-                    self.cwd = String::from("/home/bharath");
+                if args.is_empty() || args[0] == "~" || args[0] == "/home/srivas" {
+                    self.cwd = String::from("/home/srivas");
                 } else if args[0] == "/" {
                     self.cwd = String::from("/");
                 } else if args[0] == ".." {
-                    if self.cwd == "/home/bharath" {
+                    if self.cwd == "/home/srivas" {
                         self.cwd = String::from("/home");
                     } else if self.cwd == "/home" {
                         self.cwd = String::from("/");
                     } else if self.cwd.contains('/') && self.cwd != "/" {
-                        self.cwd = String::from("/home/bharath");
+                        self.cwd = String::from("/home/srivas");
                     }
                 } else {
                     let target = args[0];
@@ -174,8 +174,8 @@ impl TerminalApp {
             "echo" => {
                 let text = args.join(" ");
                 let expanded = text
-                    .replace("$USER", "bharath")
-                    .replace("$HOME", "/home/bharath")
+                    .replace("$USER", "srivas")
+                    .replace("$HOME", "/home/srivas")
                     .replace("$SHELL", "/bin/bash")
                     .replace("$HOSTNAME", "microos")
                     .replace("$PWD", &self.cwd)
@@ -186,22 +186,22 @@ impl TerminalApp {
                 let show_all = args.contains(&"-la") || args.contains(&"-al") || args.contains(&"-a");
                 let show_long = show_all || args.contains(&"-l") || args.contains(&"-lh");
 
-                if self.cwd == "/home/bharath" || self.cwd.starts_with("/home/bharath") {
+                if self.cwd == "/home/srivas" || self.cwd.starts_with("/home/srivas") {
                     if show_long {
                         self.push_line("total 36", Color::MUTED_TEXT);
                         if show_all {
-                            self.push_line("drwxr-xr-x 7 bharath bharath 4096 Nov 23 02:00 .", Color::ACCENT_BLUE);
+                            self.push_line("drwxr-xr-x 7 srivas srivas 4096 Nov 23 02:00 .", Color::ACCENT_BLUE);
                             self.push_line("drwxr-xr-x 3 root    root    4096 Nov 23 02:00 ..", Color::ACCENT_BLUE);
-                            self.push_line("-rw-r--r-- 1 bharath bharath  220 Nov 23 02:00 .bashrc", Color::MUTED_TEXT);
-                            self.push_line("-rw-r--r-- 1 bharath bharath  675 Nov 23 02:00 .profile", Color::MUTED_TEXT);
+                            self.push_line("-rw-r--r-- 1 srivas srivas  220 Nov 23 02:00 .bashrc", Color::MUTED_TEXT);
+                            self.push_line("-rw-r--r-- 1 srivas srivas  675 Nov 23 02:00 .profile", Color::MUTED_TEXT);
                         }
-                        self.push_line("drwxr-xr-x 2 bharath bharath 4096 Nov 23 02:00 Desktop", Color::ACCENT_BLUE);
-                        self.push_line("drwxr-xr-x 2 bharath bharath 4096 Nov 23 02:00 Documents", Color::ACCENT_BLUE);
-                        self.push_line("drwxr-xr-x 2 bharath bharath 4096 Nov 23 02:00 Downloads", Color::ACCENT_BLUE);
-                        self.push_line("drwxr-xr-x 2 bharath bharath 4096 Nov 23 02:00 Games", Color::ACCENT_BLUE);
-                        self.push_line("drwxr-xr-x 2 bharath bharath 4096 Nov 23 02:00 Projects", Color::ACCENT_BLUE);
-                        self.push_line("-rw-r--r-- 1 bharath bharath 1024 Nov 23 02:00 README.txt", Color::WHITE);
-                        self.push_line("-rw-r--r-- 1 bharath bharath  512 Nov 23 02:00 microos.conf", Color::WHITE);
+                        self.push_line("drwxr-xr-x 2 srivas srivas 4096 Nov 23 02:00 Desktop", Color::ACCENT_BLUE);
+                        self.push_line("drwxr-xr-x 2 srivas srivas 4096 Nov 23 02:00 Documents", Color::ACCENT_BLUE);
+                        self.push_line("drwxr-xr-x 2 srivas srivas 4096 Nov 23 02:00 Downloads", Color::ACCENT_BLUE);
+                        self.push_line("drwxr-xr-x 2 srivas srivas 4096 Nov 23 02:00 Games", Color::ACCENT_BLUE);
+                        self.push_line("drwxr-xr-x 2 srivas srivas 4096 Nov 23 02:00 Projects", Color::ACCENT_BLUE);
+                        self.push_line("-rw-r--r-- 1 srivas srivas 1024 Nov 23 02:00 README.txt", Color::WHITE);
+                        self.push_line("-rw-r--r-- 1 srivas srivas  512 Nov 23 02:00 microos.conf", Color::WHITE);
                     } else {
                         self.push_line("Desktop  Documents  Downloads  Games  Projects  README.txt  microos.conf", Color::ACCENT_BLUE);
                     }
@@ -232,28 +232,28 @@ impl TerminalApp {
                 } else {
                     let target = args[0].to_ascii_lowercase();
                     match target.as_str() {
-                        "readme.txt" | "readme" | "/home/bharath/readme.txt" => {
+                        "readme.txt" | "readme" | "/home/srivas/readme.txt" => {
                             self.push_line("==================================================", Color::ACCENT_CYAN);
                             self.push_line("Welcome to MicroOS v1.0 - Minimal Linux Operating System", Color::WHITE);
-                            self.push_line("Primary User : Bharath (System Administrator)", Color::WHITE);
+                            self.push_line("Primary User : M. Srivas (System Administrator)", Color::WHITE);
                             self.push_line("Architecture : x86_64 SMP, Linux 6.6.63 kernel", Color::WHITE);
                             self.push_line("GUI Shell    : MicroOS Compositor & Native Desktop", Color::WHITE);
                             self.push_line("Storage      : AHCI SATA 512MB Virtual Disk", Color::WHITE);
                             self.push_line("ISO Size     : Under 50 MB budget (actual: 3.63 MB)", Color::TERMINAL_GREEN);
                             self.push_line("==================================================", Color::ACCENT_CYAN);
                         }
-                        "microos.conf" | "/home/bharath/microos.conf" => {
+                        "microos.conf" | "/home/srivas/microos.conf" => {
                             self.push_line("OS_NAME=\"MicroOS\"", Color::WHITE);
                             self.push_line("OS_VERSION=\"1.0\"", Color::WHITE);
                             self.push_line("ARCH=\"x86_64\"", Color::WHITE);
-                            self.push_line("PRIMARY_USER=\"bharath\"", Color::WHITE);
+                            self.push_line("PRIMARY_USER=\"srivas\"", Color::WHITE);
                             self.push_line("UI_MODE=\"gui_desktop\"", Color::WHITE);
                             self.push_line("DESKTOP_RES=\"800x600x32\"", Color::WHITE);
                         }
-                        ".bashrc" | "/home/bharath/.bashrc" => {
-                            self.push_line("export USER=bharath", Color::WHITE);
-                            self.push_line("export HOME=/home/bharath", Color::WHITE);
-                            self.push_line("export PS1='bharath@microos:~$ '", Color::WHITE);
+                        ".bashrc" | "/home/srivas/.bashrc" => {
+                            self.push_line("export USER=srivas", Color::WHITE);
+                            self.push_line("export HOME=/home/srivas", Color::WHITE);
+                            self.push_line("export PS1='srivas@microos:~$ '", Color::WHITE);
                             self.push_line("export PATH=/usr/local/bin:/usr/bin:/bin", Color::WHITE);
                             self.push_line("alias ll='ls -la'", Color::WHITE);
                             self.push_line("alias neofetch='sysinfo'", Color::WHITE);
@@ -268,7 +268,7 @@ impl TerminalApp {
                         "/etc/passwd" | "passwd" => {
                             self.push_line("root:x:0:0:root:/root:/bin/bash", Color::WHITE);
                             self.push_line("daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin", Color::WHITE);
-                            self.push_line("bharath:x:1000:1000:Bharath Administrator:/home/bharath:/bin/bash", Color::TERMINAL_GREEN);
+                            self.push_line("srivas:x:1000:1000:M. Srivas Administrator:/home/srivas:/bin/bash", Color::TERMINAL_GREEN);
                             self.push_line("nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin", Color::WHITE);
                         }
                         "/etc/hostname" | "hostname" => {
@@ -318,9 +318,9 @@ impl TerminalApp {
                 self.push_line("  PID USER       TIME  COMMAND", Color::MUTED_TEXT);
                 self.push_line("    1 root       0:01  /sbin/init", Color::WHITE);
                 self.push_line("    2 root       0:00  [kthreadd]", Color::WHITE);
-                self.push_line("  150 bharath    0:05  microos-compositor", Color::WHITE);
-                self.push_line("  151 bharath    0:03  microos-window-manager", Color::WHITE);
-                self.push_line("  152 bharath    0:01  microos-terminal-bash", Color::WHITE);
+                self.push_line("  150 srivas    0:05  microos-compositor", Color::WHITE);
+                self.push_line("  151 srivas    0:03  microos-window-manager", Color::WHITE);
+                self.push_line("  152 srivas    0:01  microos-terminal-bash", Color::WHITE);
             }
             "top" => {
                 self.push_line("top - 02:30:00 up 24 min, 1 user, load average: 0.05, 0.02, 0.00", Color::MUTED_TEXT);
@@ -328,8 +328,8 @@ impl TerminalApp {
                 self.push_line("%Cpu(s):  1.2 us,  0.8 sy,  0.0 ni, 98.0 id,  0.0 wa,  0.0 hi", Color::WHITE);
                 self.push_line("MiB Mem :   1024.0 total,    958.0 free,     36.0 used,     30.0 buff", Color::WHITE);
                 self.push_line("  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND", Color::MUTED_TEXT);
-                self.push_line("  150 bharath   20   0   14.2M   6.1M   2.8M S   1.5   0.6   0:05.12 compositor", Color::WHITE);
-                self.push_line("  152 bharath   20   0    8.5M   3.4M   1.9M R   0.8   0.3   0:01.30 bash", Color::TERMINAL_GREEN);
+                self.push_line("  150 srivas   20   0   14.2M   6.1M   2.8M S   1.5   0.6   0:05.12 compositor", Color::WHITE);
+                self.push_line("  152 srivas   20   0    8.5M   3.4M   1.9M R   0.8   0.3   0:01.30 bash", Color::TERMINAL_GREEN);
                 self.push_line("    1 root      20   0    2.1M   0.9M   0.6M S   0.0   0.1   0:01.02 init", Color::WHITE);
             }
             "sysinfo" => {
@@ -337,7 +337,7 @@ impl TerminalApp {
                 self.push_line("  MicroOS v1.0 - Minimal Linux. Maximum Control.", Color::ACCENT_CYAN);
                 self.push_line("==================================================", Color::ACCENT_CYAN);
                 self.push_line("  Hostname   : microos", Color::WHITE);
-                self.push_line("  User       : Bharath (Admin, UID: 1000)", Color::TERMINAL_GREEN);
+                self.push_line("  User       : M. Srivas (Admin, UID: 1000)", Color::TERMINAL_GREEN);
                 self.push_line("  Kernel     : Linux 6.6.63-microos (x86_64 SMP)", Color::WHITE);
                 self.push_line("  Desktop    : MicroOS Native GUI Desktop Environment", Color::WHITE);
                 self.push_line("  Display    : 800x600 32-bit TrueColor Framebuffer", Color::WHITE);
@@ -366,7 +366,7 @@ impl TerminalApp {
                     self.push_line("Scanning for nearby wireless networks via wlan0...", Color::MUTED_TEXT);
                     self.push_line("SSID                 SIGNAL  BAND     SECURITY       STATUS", Color::ACCENT_CYAN);
                     self.push_line("MOJO-JAN-C1-F9        85%    5.0 GHz  WPA2-Personal  [Connected]", Color::TERMINAL_GREEN);
-                    self.push_line("Bharath-5G-Hotspot    92%    5.0 GHz  WPA3-Personal  Available", Color::WHITE);
+                    self.push_line("Srivas-5G-Hotspot    92%    5.0 GHz  WPA3-Personal  Available", Color::WHITE);
                     self.push_line("AndroidAP_7781        15%    5.0 GHz  WPA3-Personal  Available", Color::WHITE);
                     self.push_line("MOJO-JAN-B-F5         10%    5.0 GHz  WPA2-Personal  Available", Color::WHITE);
                     self.push_line("MOJO-JAN-B-F6          8%    5.0 GHz  WPA2-Personal  Available", Color::WHITE);
@@ -426,21 +426,21 @@ impl TerminalApp {
                 }
             }
             "neofetch" | "fastfetch" => {
-                self.push_line("   /\\_/\\     bharath@microos", Color::ACCENT_CYAN);
+                self.push_line("   /\\_/\\     srivas@microos", Color::ACCENT_CYAN);
                 self.push_line("  ( o.o )    ----------------", Color::ACCENT_CYAN);
                 self.push_line("   > ^ <     OS: MicroOS v1.0 x86_64", Color::WHITE);
                 self.push_line("             Host: Oracle VirtualBox", Color::WHITE);
                 self.push_line("             Kernel: 6.6.63-microos", Color::WHITE);
-                self.push_line("             User: Bharath (Admin)", Color::TERMINAL_GREEN);
+                self.push_line("             User: M. Srivas (Admin)", Color::TERMINAL_GREEN);
                 self.push_line("             Shell: bash 5.2.15", Color::WHITE);
                 self.push_line("             Resolution: 800x600 (32-bit)", Color::WHITE);
                 self.push_line("             DE: MicroOS Desktop Environment", Color::WHITE);
                 self.push_line("             Memory: 36MB / 1024MB", Color::WHITE);
             }
             "env" => {
-                self.push_line("USER=bharath", Color::WHITE);
-                self.push_line("LOGNAME=bharath", Color::WHITE);
-                self.push_line("HOME=/home/bharath", Color::WHITE);
+                self.push_line("USER=srivas", Color::WHITE);
+                self.push_line("LOGNAME=srivas", Color::WHITE);
+                self.push_line("HOME=/home/srivas", Color::WHITE);
                 self.push_line("SHELL=/bin/bash", Color::WHITE);
                 self.push_line("TERM=xterm-256color", Color::WHITE);
                 self.push_line("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", Color::WHITE);
@@ -522,10 +522,10 @@ impl TerminalApp {
         }
 
         // Active prompt line
-        let prompt_display = if self.cwd == "/home/bharath" {
-            String::from("bharath@microos:~$ ")
+        let prompt_display = if self.cwd == "/home/srivas" {
+            String::from("srivas@microos:~$ ")
         } else {
-            format!("bharath@microos:{}$ ", self.cwd)
+            format!("srivas@microos:{}$ ", self.cwd)
         };
 
         surface.draw_string(win_x + 10, row_y, &prompt_display, Color::TERMINAL_GREEN);

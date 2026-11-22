@@ -640,7 +640,7 @@ static void draw_wifi_dialog(WinState *w)
         const char *sec;
     } nets[] = {
         { "MOJO-JAN-C1-F9",     85, "WPA2-Personal" },
-        { "Bharath-5G-Hotspot", 92, "WPA3-Personal" },
+        { "Srivas-5G-Hotspot", 92, "WPA3-Personal" },
         { "AndroidAP_7781",     15, "WPA3-Personal" },
         { "MOJO-JAN-B-F5",      10, "WPA2-Personal" },
         { "MOJO-JAN-B-F6",       8, "WPA2-Personal" },
@@ -1280,7 +1280,7 @@ static void handle_mouse(MEVENT *ev)
                 }
             }
             static const char *net_names[] = {
-                "MOJO-JAN-C1-F9", "Bharath-5G-Hotspot", "AndroidAP_7781", "MOJO-JAN-B-F5", "MOJO-JAN-B-F6"
+                "MOJO-JAN-C1-F9", "Srivas-5G-Hotspot", "AndroidAP_7781", "MOJO-JAN-B-F5", "MOJO-JAN-B-F6"
             };
             /* Network rows at w->y + 8 to w->y + 12 */
             for (int i = 0; i < 5; i++) {

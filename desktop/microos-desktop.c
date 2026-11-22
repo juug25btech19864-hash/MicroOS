@@ -173,19 +173,19 @@ typedef struct {
     const char *rate;
     const char *ip;
     const char *sec;
+    const char *bandShort;
 } WifiNet;
 
 static const WifiNet wifi_list[] = {
-    { "iQOO Neo 10R",   "Secured", "[####]", 92, "-28 dBm, Optimal", "802.11n Wi-Fi 4", "2.4 GHz (Channel 1)",  "144.4 Mbps / 144.4 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
-    { "Jain_Student",   "Secured", "[####]", 74, "-62 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 44)", "300.0 Mbps / 300.0 Mbps Full Duplex", "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2" },
-    { "Jain_Faculty",   "WPA2",    "[###.]", 68, "-66 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 36)", "240.0 Mbps / 240.0 Mbps Full Duplex", "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
-    { "eduroam",        "802.1X",  "[###.]", 61, "-70 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 48)", "200.0 Mbps / 200.0 Mbps Full Duplex", "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise (802.1X EAP)" },
-    { "Jain_Staff",     "WPA2",    "[##..]", 55, "-74 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 6)",  "130.0 Mbps / 130.0 Mbps Half Duplex", "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
-    { "Campus_Guest",   "Portal",  "[##..]", 48, "-78 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 11)", "54.0 Mbps / 54.0 Mbps Half Duplex",  "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "Open / Web Portal" },
-    { "Direct_Printer", "WPA2",    "[#...]", 32, "-86 dBm, Weak",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 1)",  "11.0 Mbps / 11.0 Mbps Half Duplex",   "10.0.2.21 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
+    { "Jain_Student",   "Secured", "[####]", 92, "-58 dBm, Optimal", "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "1201 Mbps / 960.5 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2", "5.0 GHz" },
+    { "Jain_Faculty",   "WPA2",    "[####]", 88, "-64 dBm, Good",    "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "866.7 Mbps / 866.7 Mbps Full Duplex", "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2", "5.0 GHz" },
+    { "Jain_Staff",     "WPA2",    "[###.]", 78, "-72 dBm, Good",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 6)",  "144.4 Mbps / 144.4 Mbps Half Duplex", "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)",       "2.4 GHz" },
+    { "eduroam",        "802.1X",  "[###.]", 72, "-74 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 44)", "540.0 Mbps / 540.0 Mbps Full Duplex", "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise (802.1X EAP)",   "5.0 GHz" },
+    { "Campus_Guest",   "Portal",  "[##..]", 55, "-78 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 11)", "72.2 Mbps / 72.2 Mbps Half Duplex",  "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "Open / Web Portal",              "2.4 GHz" },
+    { "Direct_Printer", "WPA2",    "[#...]", 35, "-86 dBm, Weak",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 1)",  "11.0 Mbps / 11.0 Mbps Half Duplex",   "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)",       "2.4 GHz" },
 };
 static const int WIFI_COUNT = sizeof(wifi_list) / sizeof(wifi_list[0]);
-static char wifi_ssid[64] = "iQOO Neo 10R";
+static char wifi_ssid[64] = "Jain_Student";
 
 /* Windows */
 #define MAX_WINDOWS 6
@@ -705,7 +705,7 @@ static void build_wifi(char *buf, int sz)
             is_conn ? "[Connected]" : "[In Range]",
             wifi_list[i].bars,
             wifi_list[i].signal,
-            (i == 0 || i == 4 || i == 5 || i == 6) ? "2.4 GHz" : "5.0 GHz",
+            wifi_list[i].bandShort,
             wifi_list[i].status);
         int len = strlen(line);
         if (offset + len < (int)sizeof(list_block) - 1) {

@@ -1370,12 +1370,12 @@ micro@microos:~$ </div>
 
     // Static nearby networks (always shown as "in range" background)
     const staticNearbyNetworks = [
-      { name: 'Jain_Student',   signal: 74, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: 'WPA2-Enterprise', rate: '300.0 Mbps', dbm: '-62 dBm, Good',      ip: null },
-      { name: 'Jain_Faculty',   signal: 68, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: 'WPA2',           rate: '240.0 Mbps', dbm: '-66 dBm, Good',      ip: null },
-      { name: 'Jain_Staff',     signal: 55, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '130.0 Mbps', dbm: '-74 dBm, Fair',      ip: null },
-      { name: 'eduroam',        signal: 61, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: '802.1X',         rate: '200.0 Mbps', dbm: '-70 dBm, Good',      ip: null },
-      { name: 'Campus_Guest',   signal: 48, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'Open / Portal',  rate: '54.0 Mbps',  dbm: '-78 dBm, Fair',      ip: null },
-      { name: 'Direct_Printer', signal: 32, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '11.0 Mbps',  dbm: '-86 dBm, Weak',      ip: null },
+      { name: 'Jain_Student',   signal: 92, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)', sec: 'WPA2-Enterprise', rate: '1201 Mbps Full Duplex', dbm: '-58 dBm, Optimal', ip: '10.0.2.15' },
+      { name: 'Jain_Faculty',   signal: 88, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)', sec: 'WPA2-Enterprise', rate: '866.7 Mbps Full Duplex', dbm: '-64 dBm, Good',    ip: null },
+      { name: 'Jain_Staff',     signal: 78, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '144.4 Mbps Half Duplex', dbm: '-72 dBm, Good',    ip: null },
+      { name: 'eduroam',        signal: 72, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: '802.1X',         rate: '540.0 Mbps Full Duplex', dbm: '-74 dBm, Good',    ip: null },
+      { name: 'Campus_Guest',   signal: 55, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'Open / Portal',  rate: '72.2 Mbps Half Duplex',  dbm: '-78 dBm, Fair',    ip: null },
+      { name: 'Direct_Printer', signal: 35, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',  sec: 'WPA2',           rate: '11.0 Mbps Half Duplex',  dbm: '-86 dBm, Weak',    ip: null },
     ];
 
     async function loadRealWifi() {
@@ -1429,17 +1429,14 @@ micro@microos:~$ </div>
 
         const realCount = avail.filter(n => n.real).length;
         document.getElementById('wifiScanStatus').textContent =
-          `Last scan: ${new Date().toLocaleTimeString()} — ${realCount} live + ${networks.length - realCount} in-range networks`;
+          `Last scan: ${new Date().toLocaleTimeString()} — Connected to Jain University Wi-Fi (${networks.length} networks)`;
       } catch (err) {
-        // Fallback: show iQOO + static list
-        networks = [
-          { name: 'iQOO Neo 10R', signal: 92, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)', sec: 'WPA2-Personal', rate: '144.4 / 144.4 Mbps', dbm: '-34 dBm, Optimal', ip: '(Host)' },
-          ...staticNearbyNetworks,
-        ];
-        currentConnected = 'iQOO Neo 10R';
+        // Fallback: show Jain_Student as default
+        networks = [...staticNearbyNetworks];
+        currentConnected = 'Jain_Student';
         renderWifiList();
         updateConnectedCard();
-        document.getElementById('wifiScanStatus').textContent = `Auto-detected — ${new Date().toLocaleTimeString()} (${networks.length} networks)`;
+        document.getElementById('wifiScanStatus').textContent = `Auto-detected Jain Campus — ${new Date().toLocaleTimeString()}`;
       }
     }
 

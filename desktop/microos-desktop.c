@@ -43,6 +43,10 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
 
 /* ═══════════════════════════════════════════════════════════════════
    COLOR DEFINITIONS
@@ -643,6 +647,66 @@ static void draw_all(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   DYNAMIC HOST WI-FI AUTO-SYNC
+   ═══════════════════════════════════════════════════════════════════ */
+static void sync_wifi_from_host(void)
+{
+    const char *hosts[] = { "10.0.2.2", "192.168.56.1", "127.0.0.1" };
+    int n_hosts = sizeof(hosts) / sizeof(hosts[0]);
+    char response[2048];
+    int got_resp = 0;
+
+    for (int h = 0; h < n_hosts && !got_resp; h++) {
+        int s = socket(AF_INET, SOCK_STREAM, 0);
+        if (s < 0) continue;
+
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 250000; /* 250 ms max wait */
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(8080);
+        if (inet_pton(AF_INET, hosts[h], &sin.sin_addr) <= 0) {
+            close(s);
+            continue;
+        }
+
+        if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) == 0) {
+            const char *req = "GET /api/wifi HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+            send(s, req, strlen(req), 0);
+            int n = recv(s, response, sizeof(response) - 1, 0);
+            if (n > 0) {
+                response[n] = '\0';
+                got_resp = 1;
+            }
+        }
+        close(s);
+    }
+
+    if (!got_resp) return;
+
+    /* Parse SSID: "ssid": "..." */
+    char *p = strstr(response, "\"ssid\":");
+    if (p) {
+        char *q1 = strchr(p + 7, '\"');
+        if (q1) {
+            char *q2 = strchr(q1 + 1, '\"');
+            if (q2 && (q2 - q1 < (int)sizeof(wifi_ssid))) {
+                int len = q2 - q1 - 1;
+                strncpy(wifi_ssid, q1 + 1, len);
+                wifi_ssid[len] = '\0';
+                FILE *wf = fopen("/run/wifi.state", "w");
+                if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
+            }
+        }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    WINDOW CONTENT GENERATORS
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -888,6 +952,7 @@ static void open_window(int type)
     switch (type) {
         case APP_WIFI:
             strncpy(w->title, "Wi-Fi Quick Settings", sizeof(w->title)-1);
+            sync_wifi_from_host();
             build_wifi(w->content, sizeof(w->content));
             break;
         case APP_SYSMON:
@@ -1158,6 +1223,7 @@ static void handle_input(int ch)
                 need_redraw = 1;
                 return;
             } else if (ch == 'r' || ch == 'R') {
+                sync_wifi_from_host();
                 build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
                 need_redraw = 1;
                 return;
@@ -1244,7 +1310,7 @@ int main(void)
     init_colors();
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 
-    /* Sync Wi-Fi SSID from state file if present */
+    /* Sync Wi-Fi SSID from state file or live host if reachable */
     FILE *wf = fopen("/run/wifi.state", "r");
     if (!wf) wf = fopen("/etc/wifi_ssid", "r");
     if (!wf) wf = fopen("/etc/wifi.conf", "r");
@@ -1260,6 +1326,7 @@ int main(void)
         }
         fclose(wf);
     }
+    sync_wifi_from_host();
 
     while (running) {
         if (need_redraw) {
@@ -1268,6 +1335,11 @@ int main(void)
         }
         int ch = getch();
         if (ch == ERR) {
+            static int sync_counter = 0;
+            if (++sync_counter >= 10) {
+                sync_counter = 0;
+                sync_wifi_from_host();
+            }
             need_redraw = 1; /* Clock tick update */
         } else {
             handle_input(ch);

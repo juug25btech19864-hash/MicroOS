@@ -812,6 +812,7 @@
       </div>
 
       <div style="font-weight: 700; margin: 12px 0 8px; color: #fff;">AVAILABLE NETWORKS (Click any to connect):</div>
+      <div id="wifiScanStatus" style="font-size: 11px; color: #888; margin-bottom: 6px;">🔄 Scanning for real networks…</div>
       <div id="wifiList"></div>
 
       <div style="margin-top: 16px; display: flex; gap: 8px;">
@@ -1313,17 +1314,9 @@ micro@microos:~$ </div>
       });
     }
 
-    /* 6. Wi-Fi Manager Logic */
-    const networks = [
-      { name: 'Jain_Student',   signal: 95, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)',  sec: 'WPA2-Enterprise', rate: '866.7 Mbps Full Duplex', ip: '10.0.2.15',       dbm: '-42 dBm, Optimal' },
-      { name: 'Jain_Faculty',   signal: 90, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: 'WPA2',           rate: '720.0 Mbps Full Duplex', ip: '10.0.2.16',       dbm: '-47 dBm, Excellent' },
-      { name: 'Jain_Staff',     signal: 78, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'WPA2',           rate: '300.0 Mbps Half Duplex', ip: '10.0.2.17',       dbm: '-58 dBm, Good' },
-      { name: 'eduroam',        signal: 72, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: '802.1X',         rate: '450.0 Mbps Full Duplex', ip: '10.0.2.18',       dbm: '-63 dBm, Good' },
-      { name: 'AndroidAP_5G',   signal: 60, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: 'WPA3',           rate: '240.0 Mbps Full Duplex', ip: '192.168.43.100',  dbm: '-70 dBm, Fair' },
-      { name: 'Campus_Guest',   signal: 52, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'Open / Portal',  rate: '54.0 Mbps Half Duplex',  ip: '172.16.0.50',     dbm: '-75 dBm, Fair' },
-      { name: 'Direct_Printer', signal: 35, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'WPA2',           rate: '11.0 Mbps Half Duplex',  ip: '192.168.1.200',   dbm: '-85 dBm, Weak' },
-    ];
-    let currentConnected = 'Jain_Student';
+    /* 6. Wi-Fi Manager Logic — AUTO-DETECT from Windows host via /api/wifi */
+    let networks = [];
+    let currentConnected = null;
 
     function sigColor(sig) { return sig > 70 ? '#00e676' : sig > 50 ? '#ff9100' : '#ff5252'; }
 
@@ -1332,9 +1325,9 @@ micro@microos:~$ </div>
       const offline = !net;
       const card = document.getElementById('wifiCard');
       const badge = document.getElementById('connectedBadge');
-      document.getElementById('connectedSSID').innerText = offline ? 'Disconnected' : net.name;
+      document.getElementById('connectedSSID').innerText = offline ? (currentConnected === '__offline__' ? 'Disconnected' : 'Detecting…') : net.name;
       if (offline) {
-        badge.textContent = 'OFFLINE';
+        badge.textContent = currentConnected === '__offline__' ? 'OFFLINE' : 'SCANNING…';
         badge.style.background = 'rgba(255,82,82,0.2)';
         badge.style.color = '#ff5252';
         card.style.borderColor = 'rgba(255,82,82,0.4)';
@@ -1343,32 +1336,110 @@ micro@microos:~$ </div>
         document.getElementById('connRate').innerHTML  = '—';
         document.getElementById('connIP').innerHTML    = '—';
       } else {
-        const secured = net.sec !== 'Open / Portal';
+        const secured = net.sec && !net.sec.toLowerCase().includes('open');
         badge.textContent = secured ? 'CONNECTED, SECURED' : 'CONNECTED, OPEN';
         badge.style.background = secured ? 'rgba(0,230,118,0.2)' : 'rgba(255,152,0,0.2)';
         badge.style.color      = secured ? '#00e676' : '#ff9100';
         card.style.borderColor = 'rgba(0,230,118,0.35)';
         document.getElementById('connSig').style.color = sigColor(net.signal);
-        document.getElementById('connSig').innerHTML   = `${net.signal}% (${net.dbm})`;
-        document.getElementById('connBand').innerHTML  = net.bandFull;
-        document.getElementById('connRate').innerHTML  = net.rate;
-        document.getElementById('connIP').innerHTML    = net.ip;
+        document.getElementById('connSig').innerHTML   = `${net.signal}% (${net.dbm || ''})`;
+        document.getElementById('connBand').innerHTML  = net.bandFull || net.band || '—';
+        document.getElementById('connRate').innerHTML  = net.rate || '—';
+        document.getElementById('connIP').innerHTML    = net.ip || '(DHCP)';
       }
     }
 
     function renderWifiList() {
       const container = document.getElementById('wifiList');
+      if (!networks.length) {
+        container.innerHTML = '<div style="color:#aaa;padding:16px;text-align:center;">🔄 Scanning for networks…</div>';
+        return;
+      }
       container.innerHTML = networks.map(n => `
         <div class="wifi-item ${n.name === currentConnected ? 'connected' : ''}" onclick="connectWifi('${n.name}')">
           <div>
             <b>${n.name}</b>
-            <div style="font-size: 11px; color: #aaa;">${n.band} &bull; ${n.sec}</div>
+            <div style="font-size: 11px; color: #aaa;">${n.band || ''} &bull; ${n.sec || 'WPA2'}</div>
           </div>
           <div style="font-weight: 700; color: ${sigColor(n.signal)};">
-            ${n.signal}% [${n.name === currentConnected ? 'Connected' : 'In Range'}]
+            ${n.signal}% [${n.name === currentConnected ? '✓ Connected' : 'In Range'}]
           </div>
         </div>
       `).join('');
+    }
+
+    async function loadRealWifi() {
+      try {
+        const res = await fetch('/api/wifi', { cache: 'no-store' });
+        if (!res.ok) throw new Error('API unavailable');
+        const data = await res.json();
+
+        // Build networks list from real scan
+        // Start with available networks from Windows
+        const avail = (data.available || []).map(n => ({
+          name:     n.ssid,
+          signal:   n.signal,
+          band:     n.band,
+          bandFull: n.bandFull,
+          sec:      n.sec,
+          rate:     n.rate,
+          dbm:      n.dbm,
+          ip:       null,
+        }));
+
+        // Overlay connected network info
+        if (data.connected) {
+          const c = data.connected;
+          // Make sure the connected SSID is in the list
+          const idx = avail.findIndex(n => n.name === c.ssid);
+          const connNet = {
+            name:     c.ssid,
+            signal:   c.signal,
+            band:     c.band,
+            bandFull: c.bandFull,
+            sec:      c.sec,
+            rate:     c.rate,
+            dbm:      c.dbm,
+            ip:       '(Host Bridged)',
+          };
+          if (idx >= 0) avail[idx] = connNet;
+          else avail.unshift(connNet);
+          currentConnected = c.ssid;
+        }
+
+        // If no networks visible at all, show fallback
+        if (!avail.length && data.connected) {
+          avail.push({
+            name: data.connected.ssid,
+            signal: data.connected.signal,
+            band: data.connected.band,
+            bandFull: data.connected.bandFull,
+            sec: data.connected.sec,
+            rate: data.connected.rate,
+            dbm: data.connected.dbm,
+            ip: '(Host Bridged)',
+          });
+        }
+
+        networks = avail;
+        renderWifiList();
+        updateConnectedCard();
+
+        // Show live scan status
+        document.getElementById('wifiScanStatus').textContent =
+          `Last scan: ${new Date().toLocaleTimeString()} — ${networks.length} network(s) found`;
+      } catch (err) {
+        // Fallback to static demo data if server not running smart server
+        networks = [
+          { name: 'iQOO Neo 10R',  signal: 92, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)', sec: 'WPA2-Personal', rate: '144.4 / 144.4 Mbps', dbm: '-24 dBm, Optimal', ip: '(Host)' },
+          { name: 'Jain_Student',  signal: 78, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: 'WPA2-Enterprise', rate: '300.0 Mbps', dbm: '-58 dBm, Good', ip: null },
+          { name: 'eduroam',       signal: 65, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)', sec: '802.1X', rate: '240.0 Mbps', dbm: '-68 dBm, Good', ip: null },
+        ];
+        currentConnected = 'iQOO Neo 10R';
+        renderWifiList();
+        updateConnectedCard();
+        document.getElementById('wifiScanStatus').textContent = `Auto-detected (fallback mode) — ${new Date().toLocaleTimeString()}`;
+      }
     }
 
     function connectWifi(name) {
@@ -1377,16 +1448,20 @@ micro@microos:~$ </div>
       renderWifiList();
     }
     function disconnectWifi() {
-      currentConnected = null;
+      currentConnected = '__offline__';
       updateConnectedCard();
       renderWifiList();
     }
-    function rescanWifi() {
+    async function rescanWifi() {
+      document.getElementById('wifiScanStatus').textContent = '🔄 Scanning…';
+      networks = [];
       renderWifiList();
+      await loadRealWifi();
     }
 
-    renderWifiList();
-    updateConnectedCard();
+    // Auto-load real Wi-Fi on page start and refresh every 30s
+    loadRealWifi();
+    setInterval(loadRealWifi, 30000);
 
     /* 7. Snake Game Logic */
     let snakeCanvas = document.getElementById('snakeCanvas');

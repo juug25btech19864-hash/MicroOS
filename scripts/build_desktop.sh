@@ -11,6 +11,6 @@ mkdir -p "$(dirname "$OUT")"
 # Use -static only if libc is static on the system; otherwise omit.
 # We'll try dynamic linking first to avoid missing static libs.
 
-gcc -Os -s -o "$OUT" "$SRC" -lncurses
+gcc -Os -s -o "$OUT" "$SRC" -lncurses -lm
 
 echo "Desktop binary size: $(stat -c %s \"$OUT\") bytes"

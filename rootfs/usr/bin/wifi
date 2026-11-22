@@ -22,14 +22,14 @@ C_MAGENTA="${ESC}[1;35m"
 
 # Initialize default connected network if not yet configured
 if [ ! -f "$STATE_FILE" ]; then
-    echo "Jain_Student" > "$STATE_FILE"
+    echo "iQOO Neo 10R" > "$STATE_FILE"
 fi
 
 get_current_ssid() {
     if [ -f "$STATE_FILE" ]; then
         cat "$STATE_FILE"
     else
-        echo "Jain_Student"
+        echo "iQOO Neo 10R"
     fi
 }
 
@@ -49,12 +49,13 @@ get_wifi_interface() {
 }
 
 # Real networks catalog (synchronized with host Wi-Fi adapter)
-NETWORKS="Jain_Student|90|5 GHz|Open|866.7 Mbps|c0:35:32:6e:30:55|Connected
-Jain_Faculty|88|5 GHz|WPA2-Enterprise|866.7 Mbps|84:23:88:95:3d:ed|Available
-Jain_Staff|75|2.4 GHz|WPA2-PSK|144.4 Mbps|84:23:88:95:3d:ee|Available
-eduroam|70|5 GHz|WPA2-Enterprise|540.0 Mbps|84:23:88:95:3d:ef|Available
-Campus_Guest|55|2.4 GHz|Open (Portal)|72.2 Mbps|84:23:88:95:3d:f0|Available
-Mobile_Hotspot|42|2.4 GHz|WPA2-PSK|72.2 Mbps|da:98:7a:12:34:56|Available"
+NETWORKS="iQOO Neo 10R|92|2.4 GHz|WPA2-Personal|144.4 Mbps|e6:d3:57:e9:dd:d2|Connected
+Jain_Student|74|5 GHz|WPA2-Enterprise|300.0 Mbps|c0:35:32:6e:30:55|Available
+Jain_Faculty|68|5 GHz|WPA2-Enterprise|240.0 Mbps|84:23:88:95:3d:ed|Available
+eduroam|61|5 GHz|802.1X|200.0 Mbps|84:23:88:95:3d:ef|Available
+Jain_Staff|55|2.4 GHz|WPA2-PSK|130.0 Mbps|84:23:88:95:3d:ee|Available
+Campus_Guest|48|2.4 GHz|Open (Portal)|54.0 Mbps|84:23:88:95:3d:f0|Available
+Direct_Printer|32|2.4 GHz|WPA2-PSK|11.0 Mbps|da:98:7a:12:34:56|Available"
 
 get_signal_bar() {
     sig=$1
@@ -142,15 +143,16 @@ wifi_connect() {
 
     if [ -z "$target" ]; then
         wifi_scan
-        printf "Enter network number [1-6] or SSID to connect: "
+        printf "Enter network number [1-7] or SSID to connect: "
         read -r choice
         case "$choice" in
-            1) target="Jain_Student" ;;
-            2) target="Jain_Faculty" ;;
-            3) target="Jain_Staff" ;;
+            1) target="iQOO Neo 10R" ;;
+            2) target="Jain_Student" ;;
+            3) target="Jain_Faculty" ;;
             4) target="eduroam" ;;
-            5) target="Campus_Guest" ;;
-            6) target="Mobile_Hotspot" ;;
+            5) target="Jain_Staff" ;;
+            6) target="Campus_Guest" ;;
+            7) target="Direct_Printer" ;;
             *) target="$choice" ;;
         esac
     fi

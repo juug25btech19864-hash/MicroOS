@@ -161,7 +161,31 @@ static int current_workspace = 1;
 static int selected_icon = 0;
 static volatile int running = 1;
 static volatile int need_redraw = 1;
-static char wifi_ssid[64] = "Jain_Student";
+
+typedef struct {
+    const char *name;
+    const char *status;
+    const char *bars;
+    int signal;
+    const char *dbm;
+    const char *proto;
+    const char *band;
+    const char *rate;
+    const char *ip;
+    const char *sec;
+} WifiNet;
+
+static const WifiNet wifi_list[] = {
+    { "iQOO Neo 10R",   "Secured", "[####]", 92, "-28 dBm, Optimal", "802.11n Wi-Fi 4", "2.4 GHz (Channel 1)",  "144.4 Mbps / 144.4 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
+    { "Jain_Student",   "Secured", "[####]", 74, "-62 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 44)", "300.0 Mbps / 300.0 Mbps Full Duplex", "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise / PEAP-MSCHAPv2" },
+    { "Jain_Faculty",   "WPA2",    "[###.]", 68, "-66 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 36)", "240.0 Mbps / 240.0 Mbps Full Duplex", "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
+    { "eduroam",        "802.1X",  "[###.]", 61, "-70 dBm, Good",    "802.11ac Wi-Fi 5", "5.0 GHz (Channel 48)", "200.0 Mbps / 200.0 Mbps Full Duplex", "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Enterprise (802.1X EAP)" },
+    { "Jain_Staff",     "WPA2",    "[##..]", 55, "-74 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 6)",  "130.0 Mbps / 130.0 Mbps Half Duplex", "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
+    { "Campus_Guest",   "Portal",  "[##..]", 48, "-78 dBm, Fair",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 11)", "54.0 Mbps / 54.0 Mbps Half Duplex",  "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "Open / Web Portal" },
+    { "Direct_Printer", "WPA2",    "[#...]", 32, "-86 dBm, Weak",    "802.11n Wi-Fi 4",  "2.4 GHz (Channel 1)",  "11.0 Mbps / 11.0 Mbps Half Duplex",   "10.0.2.21 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal (AES-CCMP)" },
+};
+static const int WIFI_COUNT = sizeof(wifi_list) / sizeof(wifi_list[0]);
+static char wifi_ssid[64] = "iQOO Neo 10R";
 
 /* Windows */
 #define MAX_WINDOWS 6
@@ -625,38 +649,86 @@ static void draw_all(void)
 static void build_wifi(char *buf, int sz)
 {
     int connected = (wifi_ssid[0] != '\0');
+    const WifiNet *cur = NULL;
+    for (int i = 0; i < WIFI_COUNT; i++) {
+        if (strcmp(wifi_ssid, wifi_list[i].name) == 0) {
+            cur = &wifi_list[i];
+            break;
+        }
+    }
+
+    char cur_block[1024];
+    if (connected && cur) {
+        snprintf(cur_block, sizeof(cur_block),
+            "  ((o)) %-28s [CONNECTED, SECURED]\n"
+            "        Signal Strength: [==========] %d%% (%s)\n"
+            "        Radio Protocol : %s  |  Band: %s\n"
+            "        Connection Rate: %s\n"
+            "        IP Address     : %s\n"
+            "        Security Type  : %s\n",
+            cur->name,
+            cur->signal, cur->dbm,
+            cur->proto, cur->band,
+            cur->rate,
+            cur->ip,
+            cur->sec);
+    } else if (connected) {
+        snprintf(cur_block, sizeof(cur_block),
+            "  ((o)) %-28s [CONNECTED]\n"
+            "        Signal Strength: [==========] 92%% (-28 dBm, Optimal)\n"
+            "        Radio Protocol : 802.11n Wi-Fi 4  |  Band: 2.4 GHz\n"
+            "        Connection Rate: 144.4 Mbps Full Duplex\n"
+            "        IP Address     : 10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)\n"
+            "        Security Type  : WPA2-Personal\n",
+            wifi_ssid);
+    } else {
+        snprintf(cur_block, sizeof(cur_block),
+            "  ((o)) %-28s [DISCONNECTED, OFFLINE]\n"
+            "        Signal Strength: [..........] 0%% (Radio Idle)\n"
+            "        Radio Protocol : None\n"
+            "        Connection Rate: 0.0 Mbps\n"
+            "        IP Address     : 0.0.0.0 (No Link)\n"
+            "        Security Type  : None\n",
+            "No Network Connected");
+    }
+
+    char list_block[2048];
+    list_block[0] = '\0';
+    int offset = 0;
+    for (int i = 0; i < WIFI_COUNT; i++) {
+        int is_conn = (strcmp(wifi_ssid, wifi_list[i].name) == 0);
+        char line[256];
+        snprintf(line, sizeof(line),
+            "  [%d] ((o)) %-18s %-12s %s %2d%%  %-8s %s\n",
+            i + 1,
+            wifi_list[i].name,
+            is_conn ? "[Connected]" : "[In Range]",
+            wifi_list[i].bars,
+            wifi_list[i].signal,
+            (i == 0 || i == 4 || i == 5 || i == 6) ? "2.4 GHz" : "5.0 GHz",
+            wifi_list[i].status);
+        int len = strlen(line);
+        if (offset + len < (int)sizeof(list_block) - 1) {
+            strcat(list_block, line);
+            offset += len;
+        }
+    }
+
     snprintf(buf, sz,
         "Wi-Fi Quick Settings & Wireless Networks\n"
         "====================================================================\n\n"
         "Wireless Radio : [%s]  |  Hardware: Realtek RTL8852BE WiFi 6\n"
         "Interface Link : wlan0 / e1000 (Bridged NAT to Host Network)\n\n"
         "CURRENTLY CONNECTED NETWORK:\n"
-        "  ((o)) %-28s [%s]\n"
-        "        Signal Strength: %s\n"
-        "        Radio Protocol : 802.11ax Wi-Fi 6  |  Band: 5.0 GHz (Channel 44)\n"
-        "        Connection Rate: %s\n"
-        "        IP Address     : %s\n"
-        "        Security Type  : WPA2-Enterprise / PEAP-MSCHAPv2\n\n"
-        "AVAILABLE NETWORKS (7 in range):\n"
-        "  [1] ((o)) Jain_Student      %s\n"
-        "  [2] ((o)) Jain_Faculty      %s\n"
-        "  [3] ((o)) Jain_Staff        %s\n"
-        "  [4] ((o)) eduroam           %s\n"
-        "  [5] ((o)) AndroidAP_5G      %s\n"
-        "  [6] ((o)) Campus_Guest      [Open]      [##..] 52%%  2.4 GHz  Portal\n"
-        "  [7] ((o)) Direct_Printer    [In Range]  [#...] 35%%  2.4 GHz  WPA2\n\n"
-        "ACTIONS: Press [1-7] Connect | [d] Disconnect | [r] Rescan | [Esc] Close\n",
+        "%s\n"
+        "AVAILABLE NETWORKS (%d in range):\n"
+        "%s\n"
+        "ACTIONS: Press [1-%d] Connect | [d] Disconnect | [r] Rescan | [Esc] Close\n",
         connected ? "ACTIVE & ENABLED" : "RADIO IDLE",
-        connected ? wifi_ssid : "No Network Connected",
-        connected ? "CONNECTED, SECURED" : "DISCONNECTED",
-        connected ? "[==========] 95% (-42 dBm, Optimal)" : "[..........] 0% (Offline)",
-        connected ? "866.7 Mbps / 866.7 Mbps Full Duplex" : "0.0 Mbps",
-        connected ? "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)" : "0.0.0.0",
-        (strcmp(wifi_ssid, "Jain_Student") == 0) ? "[Connected] [####] 95%  5.0 GHz  Secured" : "[In Range]  [####] 95%  5.0 GHz  Secured",
-        (strcmp(wifi_ssid, "Jain_Faculty") == 0) ? "[Connected] [####] 90%  5.0 GHz  WPA2"    : "[In Range]  [####] 90%  5.0 GHz  WPA2",
-        (strcmp(wifi_ssid, "Jain_Staff") == 0)   ? "[Connected] [###.] 78%  2.4 GHz  WPA2"    : "[In Range]  [###.] 78%  2.4 GHz  WPA2",
-        (strcmp(wifi_ssid, "eduroam") == 0)      ? "[Connected] [###.] 72%  5.0 GHz  802.1X"  : "[In Range]  [###.] 72%  5.0 GHz  802.1X",
-        (strcmp(wifi_ssid, "AndroidAP_5G") == 0) ? "[Connected] [##..] 60%  5.0 GHz  WPA3"    : "[In Range]  [##..] 60%  5.0 GHz  WPA3");
+        cur_block,
+        WIFI_COUNT,
+        list_block,
+        WIFI_COUNT);
 }
 
 static void build_sysmon(char *buf, int sz)
@@ -1064,23 +1136,25 @@ static void handle_input(int ch)
         else if (ch == KEY_NPAGE)
             wins[focused_win].scroll += 3;
         else if (wins[focused_win].type == APP_WIFI) {
-            static const char *net_names[] = {
-                "Jain_Student", "Jain_Faculty", "Jain_Staff",
-                "eduroam", "AndroidAP_5G", "Campus_Guest", "Direct_Printer"
-            };
-            if (ch >= '1' && ch <= '7') {
-                strncpy(wifi_ssid, net_names[ch - '1'], sizeof(wifi_ssid) - 1);
+            if (ch >= '1' && ch <= '0' + WIFI_COUNT) {
+                strncpy(wifi_ssid, wifi_list[ch - '1'].name, sizeof(wifi_ssid) - 1);
                 build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                FILE *wf = fopen("/run/wifi.state", "w");
+                if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
                 need_redraw = 1;
                 return;
             } else if (ch == 'c' || ch == 'C') {
-                strncpy(wifi_ssid, "Jain_Student", sizeof(wifi_ssid) - 1);
+                strncpy(wifi_ssid, wifi_list[0].name, sizeof(wifi_ssid) - 1);
                 build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                FILE *wf = fopen("/run/wifi.state", "w");
+                if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
                 need_redraw = 1;
                 return;
             } else if (ch == 'd' || ch == 'D') {
                 wifi_ssid[0] = '\0';
                 build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                FILE *wf = fopen("/run/wifi.state", "w");
+                if (wf) { fputs("", wf); fclose(wf); }
                 need_redraw = 1;
                 return;
             } else if (ch == 'r' || ch == 'R') {
@@ -1169,6 +1243,23 @@ int main(void)
     }
     init_colors();
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+
+    /* Sync Wi-Fi SSID from state file if present */
+    FILE *wf = fopen("/run/wifi.state", "r");
+    if (!wf) wf = fopen("/etc/wifi_ssid", "r");
+    if (!wf) wf = fopen("/etc/wifi.conf", "r");
+    if (wf) {
+        char line[64];
+        if (fgets(line, sizeof(line), wf)) {
+            size_t l = strlen(line);
+            while (l > 0 && (line[l-1] == '\n' || line[l-1] == '\r' || line[l-1] == ' '))
+                line[--l] = '\0';
+            if (line[0] != '\0') {
+                strncpy(wifi_ssid, line, sizeof(wifi_ssid) - 1);
+            }
+        }
+        fclose(wf);
+    }
 
     while (running) {
         if (need_redraw) {

@@ -459,10 +459,11 @@
     /* Wi-Fi App */
     .wifi-card {
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(0, 230, 118, 0.35);
       border-radius: 8px;
       padding: 12px;
       margin-bottom: 12px;
+      transition: border-color 0.3s;
     }
     .wifi-item {
       display: flex;
@@ -795,17 +796,17 @@
       </div>
     </div>
     <div class="window-body">
-      <div class="wifi-card">
+      <div class="wifi-card" id="wifiCard">
         <div style="font-weight: 700; color: var(--accent-cyan); margin-bottom: 4px;">CURRENTLY CONNECTED NETWORK</div>
         <div style="font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
           <span id="connectedSSID">Jain_Student</span>
-          <span style="font-size: 11px; background: rgba(0,230,118,0.2); color: #00e676; padding: 2px 6px; border-radius: 4px;">CONNECTED, SECURED</span>
+          <span id="connectedBadge" style="font-size: 11px; background: rgba(0,230,118,0.2); color: #00e676; padding: 2px 6px; border-radius: 4px;">CONNECTED, SECURED</span>
         </div>
         <div style="font-size: 12px; color: #aaa; margin-top: 6px;">
-          Signal: <b style="color: #00e676;">95% (-42 dBm, Optimal)</b> &nbsp;|&nbsp;
-          Band: <b>5.0 GHz (Wi-Fi 6 802.11ax)</b> &nbsp;|&nbsp;
-          Link Rate: <b>866.7 Mbps Full Duplex</b><br>
-          IP: <b style="color: var(--accent-cyan);">10.0.2.15</b> (Gateway: 10.0.2.2 &bull; DNS: 8.8.8.8) &nbsp;|&nbsp;
+          Signal: <b id="connSig" style="color: #00e676;">95% (-42 dBm, Optimal)</b> &nbsp;|&nbsp;
+          Band: <b id="connBand">5.0 GHz (Wi-Fi 6 802.11ax)</b> &nbsp;|&nbsp;
+          Link Rate: <b id="connRate">866.7 Mbps Full Duplex</b><br>
+          IP: <b id="connIP" style="color: var(--accent-cyan);">10.0.2.15</b> (Gateway: 10.0.2.2 &bull; DNS: 8.8.8.8) &nbsp;|&nbsp;
           Hardware: <b>Realtek RTL8852BE WiFi 6 Controller</b>
         </div>
       </div>
@@ -1314,15 +1315,46 @@ micro@microos:~$ </div>
 
     /* 6. Wi-Fi Manager Logic */
     const networks = [
-      { name: 'Jain_Student', signal: 95, band: '5.0 GHz', sec: 'WPA2-Enterprise' },
-      { name: 'Jain_Faculty', signal: 90, band: '5.0 GHz', sec: 'WPA2' },
-      { name: 'Jain_Staff',   signal: 78, band: '2.4 GHz', sec: 'WPA2' },
-      { name: 'eduroam',      signal: 72, band: '5.0 GHz', sec: '802.1X' },
-      { name: 'AndroidAP_5G', signal: 60, band: '5.0 GHz', sec: 'WPA3' },
-      { name: 'Campus_Guest', signal: 52, band: '2.4 GHz', sec: 'Open / Portal' },
-      { name: 'Direct_Printer', signal: 35, band: '2.4 GHz', sec: 'WPA2' },
+      { name: 'Jain_Student',   signal: 95, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 6 802.11ax)',  sec: 'WPA2-Enterprise', rate: '866.7 Mbps Full Duplex', ip: '10.0.2.15',       dbm: '-42 dBm, Optimal' },
+      { name: 'Jain_Faculty',   signal: 90, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: 'WPA2',           rate: '720.0 Mbps Full Duplex', ip: '10.0.2.16',       dbm: '-47 dBm, Excellent' },
+      { name: 'Jain_Staff',     signal: 78, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'WPA2',           rate: '300.0 Mbps Half Duplex', ip: '10.0.2.17',       dbm: '-58 dBm, Good' },
+      { name: 'eduroam',        signal: 72, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: '802.1X',         rate: '450.0 Mbps Full Duplex', ip: '10.0.2.18',       dbm: '-63 dBm, Good' },
+      { name: 'AndroidAP_5G',   signal: 60, band: '5.0 GHz', bandFull: '5.0 GHz (Wi-Fi 5 802.11ac)',  sec: 'WPA3',           rate: '240.0 Mbps Full Duplex', ip: '192.168.43.100',  dbm: '-70 dBm, Fair' },
+      { name: 'Campus_Guest',   signal: 52, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'Open / Portal',  rate: '54.0 Mbps Half Duplex',  ip: '172.16.0.50',     dbm: '-75 dBm, Fair' },
+      { name: 'Direct_Printer', signal: 35, band: '2.4 GHz', bandFull: '2.4 GHz (Wi-Fi 4 802.11n)',   sec: 'WPA2',           rate: '11.0 Mbps Half Duplex',  ip: '192.168.1.200',   dbm: '-85 dBm, Weak' },
     ];
     let currentConnected = 'Jain_Student';
+
+    function sigColor(sig) { return sig > 70 ? '#00e676' : sig > 50 ? '#ff9100' : '#ff5252'; }
+
+    function updateConnectedCard() {
+      const net = networks.find(n => n.name === currentConnected);
+      const offline = !net;
+      const card = document.getElementById('wifiCard');
+      const badge = document.getElementById('connectedBadge');
+      document.getElementById('connectedSSID').innerText = offline ? 'Disconnected' : net.name;
+      if (offline) {
+        badge.textContent = 'OFFLINE';
+        badge.style.background = 'rgba(255,82,82,0.2)';
+        badge.style.color = '#ff5252';
+        card.style.borderColor = 'rgba(255,82,82,0.4)';
+        document.getElementById('connSig').innerHTML   = '—';
+        document.getElementById('connBand').innerHTML  = '—';
+        document.getElementById('connRate').innerHTML  = '—';
+        document.getElementById('connIP').innerHTML    = '—';
+      } else {
+        const secured = net.sec !== 'Open / Portal';
+        badge.textContent = secured ? 'CONNECTED, SECURED' : 'CONNECTED, OPEN';
+        badge.style.background = secured ? 'rgba(0,230,118,0.2)' : 'rgba(255,152,0,0.2)';
+        badge.style.color      = secured ? '#00e676' : '#ff9100';
+        card.style.borderColor = 'rgba(0,230,118,0.35)';
+        document.getElementById('connSig').style.color = sigColor(net.signal);
+        document.getElementById('connSig').innerHTML   = `${net.signal}% (${net.dbm})`;
+        document.getElementById('connBand').innerHTML  = net.bandFull;
+        document.getElementById('connRate').innerHTML  = net.rate;
+        document.getElementById('connIP').innerHTML    = net.ip;
+      }
+    }
 
     function renderWifiList() {
       const container = document.getElementById('wifiList');
@@ -1332,27 +1364,29 @@ micro@microos:~$ </div>
             <b>${n.name}</b>
             <div style="font-size: 11px; color: #aaa;">${n.band} &bull; ${n.sec}</div>
           </div>
-          <div style="font-weight: 700; color: ${n.signal > 70 ? '#00e676' : '#ff9100'};">
+          <div style="font-weight: 700; color: ${sigColor(n.signal)};">
             ${n.signal}% [${n.name === currentConnected ? 'Connected' : 'In Range'}]
           </div>
         </div>
       `).join('');
     }
-    renderWifiList();
 
     function connectWifi(name) {
       currentConnected = name;
-      document.getElementById('connectedSSID').innerText = name;
+      updateConnectedCard();
       renderWifiList();
     }
     function disconnectWifi() {
-      currentConnected = 'None (Offline)';
-      document.getElementById('connectedSSID').innerText = 'Disconnected';
+      currentConnected = null;
+      updateConnectedCard();
       renderWifiList();
     }
     function rescanWifi() {
       renderWifiList();
     }
+
+    renderWifiList();
+    updateConnectedCard();
 
     /* 7. Snake Game Logic */
     let snakeCanvas = document.getElementById('snakeCanvas');

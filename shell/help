@@ -3,16 +3,17 @@
 # Provides formatted, colorized command references and detailed per-command help
 
 # ANSI color codes
-C_RESET="\033[0m"
-C_BOLD="\033[1m"
-C_CYAN="\033[1;36m"
-C_GREEN="\033[1;32m"
-C_YELLOW="\033[1;33m"
-C_BLUE="\033[1;34m"
-C_MAGENTA="\033[1;35m"
-C_WHITE="\033[1;37m"
-C_RED="\033[1;31m"
-C_GRAY="\033[0;90m"
+ESC=$(printf '\033')
+C_RESET="${ESC}[0m"
+C_BOLD="${ESC}[1m"
+C_CYAN="${ESC}[1;36m"
+C_GREEN="${ESC}[1;32m"
+C_YELLOW="${ESC}[1;33m"
+C_BLUE="${ESC}[1;34m"
+C_MAGENTA="${ESC}[1;35m"
+C_WHITE="${ESC}[1;37m"
+C_RED="${ESC}[1;31m"
+C_GRAY="${ESC}[0;90m"
 
 # Graceful degradation if terminal doesn't support color or in pipe
 if [ ! -t 1 ]; then
@@ -36,7 +37,8 @@ ${C_CYAN}╔══════════════════════�
 ║${C_GRAY}                Minimal Linux. Maximum Control.                   ${C_CYAN}║
 ╚══════════════════════════════════════════════════════════════════╝${C_RESET}
 
-${C_YELLOW}SYSTEM${C_RESET}
+${C_YELLOW}SYSTEM & GUI${C_RESET}
+  ${C_GREEN}desktop${C_RESET} (gui)         Launch macOS / Windows-style TUI Desktop GUI
   ${C_GREEN}help${C_RESET} [cmd]            Display command reference or help for [cmd]
   ${C_GREEN}clear${C_RESET} (cls)           Clear the terminal console display
   ${C_GREEN}sysinfo${C_RESET} (info)        Display system overview, CPU, RAM & metrics
@@ -45,6 +47,12 @@ ${C_YELLOW}SYSTEM${C_RESET}
   ${C_GREEN}hostname${C_RESET}              Display or set system network hostname
   ${C_GREEN}uptime${C_RESET}                Display system running time and load averages
   ${C_GREEN}date${C_RESET}                  Display or configure system date and time
+
+${C_YELLOW}APPLICATIONS & STORE${C_RESET}
+  ${C_GREEN}snap${C_RESET} (store)          Open MicroOS Snap Software Center
+  ${C_GREEN}snap install${C_RESET} <pkg>    Install a package (APT / Snap backend)
+  ${C_GREEN}snap find${C_RESET} <query>     Search software repository catalog
+  ${C_GREEN}snap list${C_RESET}             List installed applications & tools
 
 ${C_YELLOW}NETWORK${C_RESET}
   ${C_GREEN}net${C_RESET}                   Network manager & live status dashboard

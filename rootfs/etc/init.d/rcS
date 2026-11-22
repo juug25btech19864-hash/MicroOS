@@ -1,6 +1,17 @@
 #!/bin/sh
 # MicroOS System Startup (rcS)
 echo "[rcS] Initializing MicroOS environment..."
+
 # Seed random generator
 [ -f /dev/urandom ] && dd if=/dev/urandom of=/dev/null count=1 2>/dev/null || true
+
+# Initialize Wi-Fi network state (default to host active wireless connection)
+mkdir -p /run /var/run /var/lib/iwd
+echo "Jain_Student" > /run/wifi.state
+
+# Bring up network interface via DHCP
+ifconfig lo 127.0.0.1 up 2>/dev/null || ip link set lo up 2>/dev/null || true
+ifconfig eth0 up 2>/dev/null || ip link set eth0 up 2>/dev/null || true
+udhcpc -i eth0 -n -q -t 2 2>/dev/null || true
+
 echo "[rcS] System ready."

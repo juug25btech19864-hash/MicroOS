@@ -2,15 +2,16 @@
 # MicroOS Interactive Dashboard & Control Center
 # Windows 11 / macOS inspired terminal experience
 
-C_RESET="\033[0m"
-C_BOLD="\033[1m"
-C_CYAN="\033[1;36m"
-C_GREEN="\033[1;32m"
-C_YELLOW="\033[1;33m"
-C_BLUE="\033[1;34m"
-C_WHITE="\033[1;37m"
-C_RED="\033[1;31m"
-C_GRAY="\033[0;90m"
+ESC=$(printf '\033')
+C_RESET="${ESC}[0m"
+C_BOLD="${ESC}[1m"
+C_CYAN="${ESC}[1;36m"
+C_GREEN="${ESC}[1;32m"
+C_YELLOW="${ESC}[1;33m"
+C_BLUE="${ESC}[1;34m"
+C_WHITE="${ESC}[1;37m"
+C_RED="${ESC}[1;31m"
+C_GRAY="${ESC}[0;90m"
 
 if [ ! -t 1 ]; then
     C_RESET=""
@@ -31,35 +32,52 @@ pause() {
 }
 
 while true; do
-    printf "\033[H\033[2J"
+    clear
     cat <<EOF
-${C_CYAN}╔══════════════════════════════════════════════════╗
-║${C_WHITE}                    MICROOS                       ${C_CYAN}║
-║${C_WHITE}                 CONTROL CENTER                   ${C_CYAN}║
-╠══════════════════════════════════════════════════╣
-║                                                  ║
-║  ${C_GREEN}[1]${C_RESET} System Information                          ${C_CYAN}║
-║  ${C_GREEN}[2]${C_RESET} Network & Wi-Fi                             ${C_CYAN}║
-║  ${C_GREEN}[3]${C_RESET} Storage & Disks                             ${C_CYAN}║
-║  ${C_GREEN}[4]${C_RESET} Applications & Packages (APT)               ${C_CYAN}║
-║  ${C_GREEN}[5]${C_RESET} Micro Arcade (8 Retro Games)                ${C_CYAN}║
-║  ${C_GREEN}[6]${C_RESET} System Settings & Control                   ${C_CYAN}║
-║  ${C_GREEN}[7]${C_RESET} System Diagnostics                          ${C_CYAN}║
-║  ${C_GREEN}[8]${C_RESET} Return to Terminal Shell                    ${C_CYAN}║
-║  ${C_GREEN}[9]${C_RESET} Power / Reboot / Shutdown                   ${C_CYAN}║
-║                                                  ║
-╚══════════════════════════════════════════════════╝${C_RESET}
+${C_CYAN}╔══════════════════════════════════════════════════════════╗
+║${C_WHITE}                       MICROOS                            ${C_CYAN}║
+║${C_WHITE}                    CONTROL CENTER                        ${C_CYAN}║
+╠══════════════════════════════════════════════════════════╣
+║                                                          ║
+║  ${C_GREEN}[1]${C_WHITE} macOS / Windows GUI Desktop Environment            ${C_CYAN}║
+║  ${C_GREEN}[2]${C_WHITE} Snap Software Store (Apps, Utilities, Games)       ${C_CYAN}║
+║  ${C_GREEN}[3]${C_WHITE} Network & Wi-Fi Management                         ${C_CYAN}║
+║  ${C_GREEN}[4]${C_WHITE} System Hardware & Resource Overview                ${C_CYAN}║
+║  ${C_GREEN}[5]${C_WHITE} Storage Disks & Partition Manager                  ${C_CYAN}║
+║  ${C_GREEN}[6]${C_WHITE} Micro Arcade (8 Retro Terminal Games)              ${C_CYAN}║
+║  ${C_GREEN}[7]${C_WHITE} System Settings, Appearance & Themes               ${C_CYAN}║
+║  ${C_GREEN}[8]${C_WHITE} System Diagnostics & Network Self-Test             ${C_CYAN}║
+║  ${C_GREEN}[9]${C_WHITE} Return to Terminal Shell                           ${C_CYAN}║
+║  ${C_GREEN}[0]${C_WHITE} Power Management (Restart / Shut Down)             ${C_CYAN}║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝${C_RESET}
 
 EOF
-    printf "Select an option [1-9]: "
+    printf "Select an option [0-9, q]: "
     read -r choice
     case "$choice" in
-        1)
-            printf "\033[H\033[2J"
+        1|desktop|gui)
+            if [ -x /usr/bin/desktop ]; then
+                /usr/bin/desktop
+            elif [ -x /bin/desktop ]; then
+                /bin/desktop
+            fi
+            ;;
+        2|snap|store)
+            if [ -x /usr/bin/snap-store ]; then
+                /usr/bin/snap-store
+            fi
+            ;;
+        3|net|wifi)
+            clear
+            if [ -x /usr/bin/wifi ]; then
+                /usr/bin/wifi
+            fi
+            ;;
+        4|sysinfo|info)
+            clear
             if [ -x /usr/bin/sysinfo ]; then
                 /usr/bin/sysinfo
-            elif [ -x "$PROJ_DIR/shell/sysinfo" ]; then
-                "$PROJ_DIR/shell/sysinfo"
             else
                 uname -a
                 uptime
@@ -67,97 +85,39 @@ EOF
             fi
             pause
             ;;
-        2)
-            printf "\033[H\033[2J"
-            if [ -x /usr/bin/net ]; then
-                /usr/bin/net
-            elif [ -x "$PROJ_DIR/networking/net" ]; then
-                "$PROJ_DIR/networking/net"
-            fi
-            echo ""
-            echo "${C_BOLD}Network Actions:${C_RESET}"
-            echo "  [1] Open Wi-Fi Manager"
-            echo "  [2] List Interfaces"
-            echo "  [3] Ping Test (8.8.8.8)"
-            echo "  [4] Return"
-            printf "Select action [1-4]: "
-            read -r net_action
-            case "$net_action" in
-                1)
-                    if [ -x /usr/bin/wifi ]; then
-                        /usr/bin/wifi
-                    elif [ -x "$PROJ_DIR/networking/wifi" ]; then
-                        "$PROJ_DIR/networking/wifi"
-                    fi
-                    ;;
-                2)
-                    if [ -x /usr/bin/net ]; then
-                        /usr/bin/net interfaces
-                    fi
-                    pause
-                    ;;
-                3)
-                    if [ -x /usr/bin/ping ]; then
-                        /usr/bin/ping -c 4 8.8.8.8
-                    else
-                        ping -c 4 8.8.8.8
-                    fi
-                    pause
-                    ;;
-                *) ;;
-            esac
-            ;;
-        3)
-            printf "\033[H\033[2J"
+        5|disks)
+            clear
             if [ -x /usr/bin/disks ]; then
                 /usr/bin/disks
                 echo ""
                 /usr/bin/disks info
-            elif [ -x "$PROJ_DIR/storage/disks" ]; then
-                "$PROJ_DIR/storage/disks"
             fi
             pause
             ;;
-        4)
-            printf "\033[H\033[2J"
-            echo "${C_CYAN}=== MICROOS APPLICATION MANAGER ===${C_RESET}"
-            if [ -x /usr/bin/apt ]; then
-                /usr/bin/apt status
-            fi
-            echo ""
-            echo "Available commands: 'apt search <pkg>', 'apt install <pkg>'"
-            pause
-            ;;
-        5)
+        6|arcade|games)
             if [ -x /usr/bin/arcade ]; then
                 /usr/bin/arcade
-            elif [ -x "$PROJ_DIR/arcade/arcade" ]; then
-                "$PROJ_DIR/arcade/arcade"
             fi
             ;;
-        6)
+        7|settings)
             if [ -x /usr/bin/settings ]; then
                 /usr/bin/settings
-            elif [ -x "$PROJ_DIR/shell/settings" ]; then
-                "$PROJ_DIR/shell/settings"
             fi
             ;;
-        7)
-            printf "\033[H\033[2J"
+        8|diagnostics)
+            clear
             if [ -x /usr/bin/diagnostics ]; then
                 /usr/bin/diagnostics
-            elif [ -x "$PROJ_DIR/shell/diagnostics" ]; then
-                "$PROJ_DIR/shell/diagnostics"
             fi
             pause
             ;;
-        8|q|exit)
-            printf "\033[H\033[2J"
+        9|q|exit)
+            clear
             echo "Exiting Control Center. Welcome back to MicroOS shell."
             break
             ;;
-        9)
-            printf "\033[H\033[2J"
+        0|power)
+            clear
             echo "${C_YELLOW}=== POWER MANAGEMENT ===${C_RESET}"
             echo "  [1] Reboot System"
             echo "  [2] Power Off / Halt Hardware"
@@ -171,7 +131,7 @@ EOF
             esac
             ;;
         *)
-            echo "${C_RED}Invalid option. Enter 1-9.${C_RESET}"
+            echo "${C_RED}Invalid option.${C_RESET}"
             sleep 1
             ;;
     esac

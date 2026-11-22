@@ -3,4 +3,3 @@
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/etc/init.d/rcK
 tty1::respawn:/bin/sh -l
-console::respawn:/bin/sh -l

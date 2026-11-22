@@ -1,26 +1,29 @@
 /*
- * Vyron MicroOS — Modern Desktop Environment v5.0 (Pixel-Faithful Edition)
+ * Vyron MicroOS — Modern Desktop Environment v5.2 (Pixel-Faithful Edition)
  * Inspired by the Vyron OS reference specification
  *
  * Visual Architecture:
  *   - Acrylic Top Bar:
  *       [*] Cyan Logo | Options v | Path breadcrumbs | [ Date & Time ] | (vol) | Red Power (X)
- *   - Exact 2-Column Desktop Icons Grid (Left Side, 18 rows max):
+ *   - Exact 2-Column Desktop Icons Grid (Left Side, 22 apps):
  *       Col 1 (x=2):  File System, Home, Vyron Developer, Vyron System Mon,
  *                     Vyron Storage Exp, Vyron Settings, Vyron Network En,
- *                     Vyron Microkernel, Vyron Hardware &
+ *                     Vyron Microkernel, Vyron Hardware &, Producer-Consumer,
+ *                     Boot Benchmark
  *       Col 2 (x=27): Vyron Files, Vyron Web Browser, APT Package Mgr,
- *                     Vyron Wi-Fi Mgr, Snap Store
- *       Row spacing:  Every 2 rows (r = 2, 4, 6, 8, 10, 12, 14, 16, 18)
- *   - Organic Flowing 3D Satin Wave Wallpaper (Columns 48 to 79):
+ *                     Vyron Wi-Fi Mgr, Snap Store, Snake Game,
+ *                     Retro Arcade Hub, Tetris Arcade, 2048 Puzzle,
+ *                     Pong Arcade, Minesweeper
+ *       Row spacing:  Every 2 rows (r = 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+ *   - Organic Flowing 3D Satin Wave Wallpaper (Columns 54 to 79):
  *       Sweeping S-curve from top-right to center-right with:
  *       Hot glowing core (#/white on magenta) -> Electric pink (%) ->
  *       Royal purple (*) -> Indigo blue (+) -> Ambient shadow (.)
  *   - Floating Bottom Dock (Row 24):
- *       Left: Colored app tiles: [M] [V] [F] [>] [W] [%] [#]
- *       Right: Workspace Pills: [Workspace 1] [W2] [W3] [W4] [■]
+ *       Left: Colored app tiles: [*] [V] [F] [>] [G] [W] [%] [#]
+ *       Right: Workspace Pills: [Workspace 1] [W2] [W3] [W4] [#]
  *   - Host-grade Wi-Fi Quick Settings Flyout (Connected + 7 In-Range Networks with signal bars)
- *   - Interactive System Monitor, Storage Explorer, Web Browser, Terminal, Settings & Snap Store
+ *   - Full Arcade Games Suite + POSIX Producer-Consumer Simulator
  */
 
 #define _GNU_SOURCE
@@ -63,9 +66,9 @@
 #define C_BADGE_CYAN    12  /* Developer, System Mon, Network */
 #define C_BADGE_BLUE    13  /* Home, Microkernel */
 #define C_BADGE_ORANGE  14  /* Files, Browser, Snap Store */
-#define C_BADGE_GREEN   15  /* APT Package Manager */
-#define C_BADGE_PURPLE  16  /* Settings */
-#define C_BADGE_RED     17  /* Hardware & Devices */
+#define C_BADGE_GREEN   15  /* APT, Snake, Producer-Consumer */
+#define C_BADGE_PURPLE  16  /* Settings, Arcade */
+#define C_BADGE_RED     17  /* Hardware & Devices, Mines */
 #define C_ICON_LABEL    18  /* Crisp white label */
 #define C_ICON_SEL      19  /* Highlighted icon (gold on black) */
 
@@ -87,14 +90,14 @@
 #define C_STATUS_OK     32
 
 /* ═══════════════════════════════════════════════════════════════════
-   APP REGISTRY (Exact 14 Apps matching reference photo)
+   APP REGISTRY (22 Apps & Games matching user requirements)
    ═══════════════════════════════════════════════════════════════════ */
 typedef struct {
-    const char *badge;     /* 4-char badge string: "[##]" */
+    const char *badge;     /* 4-5 char badge string: "[##]" */
     const char *label;     /* Display name */
     int badge_color;       /* Color pair for badge */
     int col;               /* 0 = Left column, 1 = Right column */
-    int row;               /* 0 to 8 */
+    int row;               /* 0 to 10 */
     int app_id;
 } DesktopApp;
 
@@ -107,33 +110,50 @@ typedef struct {
 #define APP_NETWORK     6
 #define APP_MICROKERNEL 7
 #define APP_HARDWARE    8
-#define APP_FILES       9
-#define APP_BROWSER     10
-#define APP_APT         11
-#define APP_WIFI        12
-#define APP_SNAPSTORE   13
-#define APP_OPTIONS     14
+#define APP_PRODUCER    9
+#define APP_BENCHMARK   10
+
+#define APP_FILES       11
+#define APP_BROWSER     12
+#define APP_APT         13
+#define APP_WIFI        14
+#define APP_SNAPSTORE   15
+#define APP_SNAKE       16
+#define APP_ARCADE      17
+#define APP_TETRIS      18
+#define APP_2048        19
+#define APP_PONG        20
+#define APP_MINES       21
+#define APP_OPTIONS     22
 
 static const DesktopApp APPS[] = {
     /* ── Column 1 (Left Column, x = 2) ── */
-    { "[##]",  "File System",        C_BADGE_WHITE,  0, 0, APP_FILESYSTEM  },
-    { "[DIR]", "Home",               C_BADGE_BLUE,   0, 1, APP_HOME        },
-    { "[>_]",  "Vyron Developer",    C_BADGE_CYAN,   0, 2, APP_DEV         },
-    { "[SYS]", "Vyron System Mon",   C_BADGE_CYAN,   0, 3, APP_SYSMON      },
-    { "[DRV]", "Vyron Storage Exp",  C_BADGE_CYAN,   0, 4, APP_STORAGE     },
-    { "[SET]", "Vyron Settings",     C_BADGE_PURPLE, 0, 5, APP_SETTINGS    },
-    { "[NET]", "Vyron Network En",   C_BADGE_CYAN,   0, 6, APP_NETWORK     },
-    { "[CPU]", "Vyron Microkernel",  C_BADGE_CYAN,   0, 7, APP_MICROKERNEL },
-    { "[HW ]", "Vyron Hardware &",   C_BADGE_RED,    0, 8, APP_HARDWARE    },
+    { "[##]",  "File System",        C_BADGE_WHITE,  0, 0,  APP_FILESYSTEM  },
+    { "[DIR]", "Home",               C_BADGE_BLUE,   0, 1,  APP_HOME        },
+    { "[>_]",  "Vyron Developer",    C_BADGE_CYAN,   0, 2,  APP_DEV         },
+    { "[SYS]", "Vyron System Mon",   C_BADGE_CYAN,   0, 3,  APP_SYSMON      },
+    { "[DRV]", "Vyron Storage Exp",  C_BADGE_CYAN,   0, 4,  APP_STORAGE     },
+    { "[SET]", "Vyron Settings",     C_BADGE_PURPLE, 0, 5,  APP_SETTINGS    },
+    { "[NET]", "Vyron Network En",   C_BADGE_CYAN,   0, 6,  APP_NETWORK     },
+    { "[CPU]", "Vyron Microkernel",  C_BADGE_CYAN,   0, 7,  APP_MICROKERNEL },
+    { "[HW ]", "Vyron Hardware &",   C_BADGE_RED,    0, 8,  APP_HARDWARE    },
+    { "[PRD]", "Producer-Consumer",  C_BADGE_GREEN,  0, 9,  APP_PRODUCER    },
+    { "[BNK]", "Boot Benchmark",     C_BADGE_ORANGE, 0, 10, APP_BENCHMARK   },
 
     /* ── Column 2 (Right Column, x = 27) ── */
-    { "[DIR]", "Vyron Files",        C_BADGE_ORANGE, 1, 0, APP_FILES       },
-    { "[WEB]", "Vyron Web Browser",  C_BADGE_ORANGE, 1, 1, APP_BROWSER     },
-    { "[PKG]", "APT Package Mgr",    C_BADGE_GREEN,  1, 2, APP_APT         },
-    { "((o))", "Vyron Wi-Fi Mgr",    C_BADGE_CYAN,   1, 3, APP_WIFI        },
-    { "[SNP]", "Snap Store",         C_BADGE_ORANGE, 1, 4, APP_SNAPSTORE   },
+    { "[DIR]", "Vyron Files",        C_BADGE_ORANGE, 1, 0,  APP_FILES       },
+    { "[WEB]", "Vyron Web Browser",  C_BADGE_ORANGE, 1, 1,  APP_BROWSER     },
+    { "[PKG]", "APT Package Mgr",    C_BADGE_GREEN,  1, 2,  APP_APT         },
+    { "((o))", "Vyron Wi-Fi Mgr",    C_BADGE_CYAN,   1, 3,  APP_WIFI        },
+    { "[SNP]", "Snap Store",         C_BADGE_ORANGE, 1, 4,  APP_SNAPSTORE   },
+    { "[SNK]", "Snake Game",         C_BADGE_GREEN,  1, 5,  APP_SNAKE       },
+    { "[ARC]", "Retro Arcade Hub",   C_BADGE_PURPLE, 1, 6,  APP_ARCADE      },
+    { "[TET]", "Tetris Arcade",      C_BADGE_BLUE,   1, 7,  APP_TETRIS      },
+    { "[204]", "2048 Puzzle",        C_BADGE_ORANGE, 1, 8,  APP_2048        },
+    { "[PNG]", "Pong Arcade",        C_BADGE_CYAN,   1, 9,  APP_PONG        },
+    { "[MNE]", "Minesweeper",        C_BADGE_RED,    1, 10, APP_MINES       },
 };
-static const int TOTAL_APPS = 14;
+static const int TOTAL_APPS = 22;
 
 /* ═══════════════════════════════════════════════════════════════════
    GLOBAL STATE
@@ -162,16 +182,18 @@ static int options_open = 0;
 static int options_item = 0;
 static const char *options_list[] = {
     "About Vyron MicroOS",
-    "Display Settings (1080p / 60Hz)",
-    "Audio Mixer (100% Master)",
+    "Retro Arcade Games (Snake, Tetris)",
+    "Producer-Consumer Simulation",
+    "Boot Time Benchmark",
     "Wi-Fi Network Manager",
     "Developer Terminal Shell",
     "Restart Desktop Session",
     "Shut Down Machine"
 };
-static const int NUM_OPTIONS = 7;
+static const int NUM_OPTIONS = 8;
 
-/* Mouse position */
+/* Mouse pointer */
+static int mouse_active = 0;
 static int mouse_x = 40;
 static int mouse_y = 12;
 
@@ -228,7 +250,7 @@ static void init_colors(void)
         init_pair(C_MENU_HIGH,    255,  54);  /* Menu highlight */
         init_pair(C_STATUS_OK,     48, 234);  /* Green */
     } else {
-        /* Standard 16-color VGA Console fallback */
+        /* Standard 16-color VGA Console */
         init_pair(C_BG,            COLOR_WHITE,   COLOR_BLACK);
         init_pair(C_TOPBAR,        COLOR_WHITE,   COLOR_BLACK);
         init_pair(C_TOP_LOGO,      COLOR_CYAN,    COLOR_BLACK);
@@ -284,7 +306,7 @@ static void draw_wallpaper(void)
     }
     attroff(COLOR_PAIR(C_BG));
 
-    /* Wave starts at column 54, leaving cols 0..53 completely pristine for icons */
+    /* Wave starts at column 54, leaving cols 0..53 pristine for icons */
     int wave_col_start = 54;
     if (COLS < 75) wave_col_start = 48;
 
@@ -305,27 +327,27 @@ static void draw_wallpaper(void)
             float elevation = (1.0f - norm_r) * 1.2f + (float)(c - wave_col_start) * 0.04f;
             float eff_dist = dist - elevation * 0.7f;
 
-            if (eff_dist < 2.0f && r >= 4 && r <= 15) {
+            if (eff_dist < 2.2f && r >= 3 && r <= 17) {
                 /* Glowing Core Highlight */
                 attron(COLOR_PAIR(C_WAVE_CORE) | A_BOLD);
                 mvaddch(r, c, '#');
                 attroff(COLOR_PAIR(C_WAVE_CORE) | A_BOLD);
-            } else if (eff_dist < 4.2f) {
+            } else if (eff_dist < 4.5f) {
                 /* Electric Pink Petal */
                 attron(COLOR_PAIR(C_WAVE_PINK) | A_BOLD);
                 mvaddch(r, c, '%');
                 attroff(COLOR_PAIR(C_WAVE_PINK) | A_BOLD);
-            } else if (eff_dist < 8.0f) {
+            } else if (eff_dist < 8.5f) {
                 /* Royal Purple Satin Fold */
                 attron(COLOR_PAIR(C_WAVE_PURPLE) | A_BOLD);
                 mvaddch(r, c, '*');
                 attroff(COLOR_PAIR(C_WAVE_PURPLE) | A_BOLD);
-            } else if (eff_dist < 12.5f) {
+            } else if (eff_dist < 13.0f) {
                 /* Indigo Ambient Fold */
                 attron(COLOR_PAIR(C_WAVE_INDIGO));
                 mvaddch(r, c, '+');
                 attroff(COLOR_PAIR(C_WAVE_INDIGO));
-            } else if (eff_dist < 18.0f) {
+            } else if (eff_dist < 18.5f) {
                 /* Deep Shadow Texture */
                 attron(COLOR_PAIR(C_WAVE_SHADOW));
                 mvaddch(r, c, '.');
@@ -345,7 +367,7 @@ static void draw_topbar(void)
     for (int c = 0; c < COLS; c++) addch(' ');
     attroff(COLOR_PAIR(C_TOPBAR));
 
-    /* Logo [❖] */
+    /* Logo [*] */
     attron(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
     mvprintw(0, 1, "[*]");
     attroff(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
@@ -356,9 +378,9 @@ static void draw_topbar(void)
     attroff(A_BOLD);
 
     /* Path breadcrumb */
-    if (COLS >= 70) {
+    if (COLS >= 75) {
         attron(COLOR_PAIR(C_TOPBAR));
-        mvprintw(0, 15, "| Desktop\\Files\\Docs");
+        mvprintw(0, 15, "| Desktop\\Files\\Media");
         attroff(COLOR_PAIR(C_TOPBAR));
     }
 
@@ -369,14 +391,14 @@ static void draw_topbar(void)
     strftime(timebuf, sizeof(timebuf), "%a %d %b %H:%M", tm);
 
     int clock_x = COLS - 34;
-    if (clock_x > 36) {
+    if (clock_x > 38) {
         attron(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
         mvprintw(0, clock_x, " [ %s ] ", timebuf);
         attroff(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
     }
 
     int vol_x = COLS - 11;
-    if (vol_x > 40) {
+    if (vol_x > 42) {
         attron(COLOR_PAIR(C_TOPBAR) | A_BOLD);
         mvprintw(0, vol_x, "(vol)");
         attroff(COLOR_PAIR(C_TOPBAR) | A_BOLD);
@@ -391,8 +413,8 @@ static void draw_topbar(void)
 /* ═══════════════════════════════════════════════════════════════════
    DESKTOP ICONS (Exact 2-Column Grid matching reference photo)
    Column 1 at x=2, Column 2 at x=27
-   Row spacing: 2 lines per app (r = 2, 4, 6, 8, 10, 12, 14, 16, 18)
-   All 14 apps visible without any overlap!
+   Row spacing: 2 lines per app (r = 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+   All 22 apps and games visible!
    ═══════════════════════════════════════════════════════════════════ */
 static void get_icon_coords(int index, int *row_out, int *col_out)
 {
@@ -406,7 +428,7 @@ static void draw_icons(void)
     for (int i = 0; i < TOTAL_APPS; i++) {
         int r, c;
         get_icon_coords(i, &r, &c);
-        if (r >= ROWS - 2) continue;
+        if (r >= ROWS - 1) continue;
 
         int sel = (i == selected_icon);
         int badge_pair = sel ? C_ICON_SEL : APPS[i].badge_color;
@@ -439,17 +461,18 @@ static void draw_dock(void)
 
     /* Pinned App Tiles */
     struct { const char *txt; int pair; } tiles[] = {
-        { "[*]", C_DOCK_TILE_MAG },
-        { "[V]", C_DOCK_TILE_BLU },
-        { "[F]", C_DOCK_TILE_ORG },
-        { "[>]", C_DOCK_TILE_CYN },
-        { "[W]", C_DOCK_TILE_BLU },
-        { "[%]", C_DOCK_TILE_MAG },
-        { "[#]", C_DOCK_TILE_CYN },
+        { "[*]", C_DOCK_TILE_MAG },  /* Start/Options */
+        { "[V]", C_DOCK_TILE_BLU },  /* About */
+        { "[F]", C_DOCK_TILE_ORG },  /* Files */
+        { "[>]", C_DOCK_TILE_CYN },  /* Terminal */
+        { "[G]", C_DOCK_TILE_MAG },  /* Retro Arcade Games */
+        { "[W]", C_DOCK_TILE_BLU },  /* Browser */
+        { "[%]", C_DOCK_TILE_MAG },  /* Sysmon */
+        { "[#]", C_DOCK_TILE_CYN },  /* Settings */
     };
 
     int tx = 1;
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         attron(COLOR_PAIR(tiles[i].pair) | A_BOLD);
         mvprintw(dock_row, tx, "%s", tiles[i].txt);
         attroff(COLOR_PAIR(tiles[i].pair) | A_BOLD);
@@ -490,7 +513,7 @@ static void draw_dock(void)
    ═══════════════════════════════════════════════════════════════════ */
 static void draw_mouse_cursor(void)
 {
-    if (mouse_y >= 0 && mouse_y < ROWS && mouse_x >= 0 && mouse_x < COLS) {
+    if (mouse_active && mouse_y >= 0 && mouse_y < ROWS && mouse_x >= 0 && mouse_x < COLS) {
         attron(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
         mvaddch(mouse_y, mouse_x, '^');
         attroff(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
@@ -568,7 +591,7 @@ static void draw_window(int wid)
 static void draw_options_menu(void)
 {
     if (!options_open) return;
-    int top = 1, left = 5, width = 36;
+    int top = 1, left = 5, width = 38;
     for (int i = 0; i < NUM_OPTIONS; i++) {
         int sel = (i == options_item);
         attron(COLOR_PAIR(sel ? C_MENU_HIGH : C_MENU_DROP) | (sel ? A_BOLD : 0));
@@ -759,14 +782,14 @@ static void build_about(char *buf, int sz)
         " |  \\/  (_) ___ _ __ ___/ _ \\/ __|\n"
         " | |\\/| | |/ __| '__/ _ \\ | | \\__ \\\n"
         " |_|  |_|_|\\___/_|  \\___/\\___/|___/\n\n"
-        "Edition      : Vyron Desktop Modern Edition v5.0\n"
+        "Edition      : Vyron Desktop Modern Edition v5.2\n"
         "Architecture : x86_64 Dual Hybrid (BIOS & UEFI Bootable)\n"
         "Kernel       : Linux 7.0.0-43-generic\n"
         "Live ISO Size: 32.9 MB (< 50 MB budget)\n"
         "Lead Author  : M. Srivas [25BTRCL143] - Department: AIML\n\n"
         "Integrated Software:\n"
         "  - POSIX Producer-Consumer Synchronization Simulator\n"
-        "  - Classic Retro Arcade Games (Snake, Tetris, Pong, 2048)\n"
+        "  - Classic Retro Arcade Games (Snake, Tetris, Pong, 2048, Mines)\n"
         "  - Ubuntu Snap Store & Debian APT Package Center\n"
         "  - Windows 11 Wi-Fi Network Quick Settings Flyout\n");
 }
@@ -847,10 +870,11 @@ static void close_focused_window(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   APP LAUNCHER
+   APP LAUNCHER (Safe Process Execution with ncurses def_prog_mode)
    ═══════════════════════════════════════════════════════════════════ */
 static void launch_app(const char *cmd, const char *name)
 {
+    def_prog_mode();
     endwin();
     printf("\033[H\033[2J");
     printf("\033[1;35m[Vyron App Launcher]\033[0m Starting %s...\n\n", name);
@@ -858,16 +882,20 @@ static void launch_app(const char *cmd, const char *name)
     (void)ret;
     printf("\n\033[1;33mApplication finished.\033[0m Press [Enter] to return to Desktop...");
     fflush(stdout);
-    getchar();
 
-    initscr(); raw(); noecho(); keypad(stdscr, TRUE); curs_set(0); timeout(1000);
-    init_colors();
-    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+    /* Drain input so Enter does not re-trigger desktop selection */
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != '\r' && ch != EOF);
+
+    reset_prog_mode();
+    curs_set(0);
+    clearok(stdscr, TRUE);
     need_redraw = 1;
 }
 
 static void launch_terminal(void)
 {
+    def_prog_mode();
     endwin();
     printf("\033[H\033[2J");
     printf("\033[1;35m");
@@ -880,9 +908,9 @@ static void launch_terminal(void)
     int ret = system("/bin/sh -l");
     (void)ret;
 
-    initscr(); raw(); noecho(); keypad(stdscr, TRUE); curs_set(0); timeout(1000);
-    init_colors();
-    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+    reset_prog_mode();
+    curs_set(0);
+    clearok(stdscr, TRUE);
     need_redraw = 1;
 }
 
@@ -900,6 +928,22 @@ static void activate_icon(int idx)
         launch_app("/usr/bin/apt status", "APT Package Manager");
     } else if (app == APP_HARDWARE) {
         launch_app("/usr/bin/dashboard", "Hardware Dashboard");
+    } else if (app == APP_PRODUCER) {
+        launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulator");
+    } else if (app == APP_BENCHMARK) {
+        launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+    } else if (app == APP_SNAKE) {
+        launch_app("/usr/games/snake", "Snake Game");
+    } else if (app == APP_ARCADE) {
+        launch_app("/usr/games/arcade", "Retro Arcade Hub");
+    } else if (app == APP_TETRIS) {
+        launch_app("/usr/games/tetris", "Tetris Arcade");
+    } else if (app == APP_2048) {
+        launch_app("/usr/games/2048", "2048 Puzzle");
+    } else if (app == APP_PONG) {
+        launch_app("/usr/games/pong", "Pong Arcade");
+    } else if (app == APP_MINES) {
+        launch_app("/usr/games/mines", "Minesweeper");
     } else if (app == APP_NETWORK) {
         open_window(APP_WIFI);
     } else {
@@ -909,6 +953,7 @@ static void activate_icon(int idx)
 
 static void handle_mouse(MEVENT *ev)
 {
+    mouse_active = 1;
     mouse_x = ev->x;
     mouse_y = ev->y;
 
@@ -927,26 +972,30 @@ static void handle_mouse(MEVENT *ev)
     }
 
     /* Options dropdown */
-    if (options_open && ev->y >= 1 && ev->y <= NUM_OPTIONS && ev->x >= 5 && ev->x <= 42) {
+    if (options_open && ev->y >= 1 && ev->y <= NUM_OPTIONS && ev->x >= 5 && ev->x <= 44) {
         int item = ev->y - 1;
         options_open = 0;
         if (item == 0) open_window(APP_OPTIONS);
-        else if (item == 3) open_window(APP_WIFI);
-        else if (item == 4) launch_terminal();
-        else if (item == 5) { endwin(); refresh(); }
-        else if (item == 6) { endwin(); if (system("poweroff") != 0) system("reboot"); }
+        else if (item == 1) launch_app("/usr/games/arcade", "Retro Arcade Hub");
+        else if (item == 2) launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulation");
+        else if (item == 3) launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+        else if (item == 4) open_window(APP_WIFI);
+        else if (item == 5) launch_terminal();
+        else if (item == 6) { endwin(); refresh(); }
+        else if (item == 7) { endwin(); if (system("poweroff") != 0) system("reboot"); }
         return;
     }
 
     /* Bottom dock */
     if (ev->y == ROWS - 1) {
-        if (ev->x >= 1 && ev->x <= 4)   { open_window(APP_OPTIONS); return; }
+        if (ev->x >= 1 && ev->x <= 4)   { options_open = !options_open; options_item = 0; return; }
         if (ev->x >= 5 && ev->x <= 8)   { open_window(APP_OPTIONS); return; }
         if (ev->x >= 9 && ev->x <= 12)  { open_window(APP_FILES); return; }
         if (ev->x >= 13 && ev->x <= 16) { launch_terminal(); return; }
-        if (ev->x >= 17 && ev->x <= 20) { open_window(APP_BROWSER); return; }
-        if (ev->x >= 21 && ev->x <= 24) { open_window(APP_SYSMON); return; }
-        if (ev->x >= 25 && ev->x <= 28) { open_window(APP_SETTINGS); return; }
+        if (ev->x >= 17 && ev->x <= 20) { launch_app("/usr/games/arcade", "Retro Arcade Hub"); return; }
+        if (ev->x >= 21 && ev->x <= 24) { open_window(APP_BROWSER); return; }
+        if (ev->x >= 25 && ev->x <= 28) { open_window(APP_SYSMON); return; }
+        if (ev->x >= 29 && ev->x <= 32) { open_window(APP_SETTINGS); return; }
 
         /* Workspace pills */
         if (ev->x >= COLS - 38 && ev->x < COLS - 24) { current_workspace = 1; return; }
@@ -968,7 +1017,7 @@ static void handle_mouse(MEVENT *ev)
     for (int i = 0; i < TOTAL_APPS; i++) {
         int r, c;
         get_icon_coords(i, &r, &c);
-        if (ev->y == r && ev->x >= c && ev->x <= c + 22) {
+        if (ev->y == r && ev->x >= c && ev->x <= c + 24) {
             selected_icon = i;
             activate_icon(i);
             return;
@@ -994,9 +1043,12 @@ static void handle_input(int ch)
             case '\n': case '\r': case KEY_ENTER:
                 options_open = 0;
                 if (options_item == 0) open_window(APP_OPTIONS);
-                else if (options_item == 3) open_window(APP_WIFI);
-                else if (options_item == 4) launch_terminal();
-                else if (options_item == 6) { endwin(); if (system("poweroff") != 0) system("reboot"); }
+                else if (options_item == 1) launch_app("/usr/games/arcade", "Retro Arcade Hub");
+                else if (options_item == 2) launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulation");
+                else if (options_item == 3) launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+                else if (options_item == 4) open_window(APP_WIFI);
+                else if (options_item == 5) launch_terminal();
+                else if (options_item == 7) { endwin(); if (system("poweroff") != 0) system("reboot"); }
                 break;
             case 27: case 'q': case 'Q':
                 options_open = 0;
@@ -1055,11 +1107,11 @@ static void handle_input(int ch)
         case KEY_UP:   selected_icon = (selected_icon - 1 + TOTAL_APPS) % TOTAL_APPS; break;
         case KEY_DOWN: selected_icon = (selected_icon + 1) % TOTAL_APPS; break;
         case KEY_LEFT: case KEY_RIGHT:
-            if (selected_icon < 9) {
-                int n = selected_icon + 9;
+            if (selected_icon < 11) {
+                int n = selected_icon + 11;
                 if (n < TOTAL_APPS) selected_icon = n;
             } else {
-                selected_icon -= 9;
+                selected_icon -= 11;
             }
             break;
 
@@ -1075,6 +1127,9 @@ static void handle_input(int ch)
             break;
 
         /* Fast Shortcuts */
+        case 'g': case 'G': launch_app("/usr/games/arcade", "Retro Arcade Hub"); break;
+        case 'k': case 'K': launch_app("/usr/games/snake", "Snake Game"); break;
+        case 'p': case 'P': launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulator"); break;
         case 'w': case 'W': open_window(APP_WIFI); break;
         case 's': case 'S': launch_app("/usr/bin/snap-store", "Snap Store"); break;
         case 't': case 'T': launch_terminal(); break;

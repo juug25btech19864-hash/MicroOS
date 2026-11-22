@@ -4,8 +4,10 @@
 
 set +e
 
-# Ensure basic PATH
+# Ensure basic PATH and Terminal Environment
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games
+export TERMINFO=/etc/terminfo
+export TERM=linux
 
 # 1. Mount Virtual Filesystems
 /bin/busybox mount -t proc none /proc 2>/dev/null || mount -t proc none /proc

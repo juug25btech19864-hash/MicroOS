@@ -1685,36 +1685,203 @@ micro@microos:~$ </div>
       renderStore(storePackages.filter(p => p.name.includes(q) || p.desc.toLowerCase().includes(q)));
     }
 
-    /* 11. Terminal Logic */
-    function handleTerminalKey(e) {
-      if (e.key === 'Enter') {
-        const input = document.getElementById('termInput');
-        const cmd = input.value.trim();
-        const out = document.getElementById('termOutput');
-        out.innerText += cmd + '\n';
+    /* 11. Terminal Logic — Full command simulation */
+    const termHistory = [];
+    let termHistIdx = -1;
+    let termCwd = '/root';
+    const termFS = {
+      '/': ['bin','dev','etc','home','lib','mnt','proc','root','sbin','sys','tmp','usr','var'],
+      '/root': ['Desktop','Documents','Downloads','.profile','.bashrc'],
+      '/home': ['micro'],
+      '/etc': ['passwd','hostname','resolv.conf','profile','group','hosts'],
+      '/usr': ['bin','lib','share','local'],
+      '/usr/bin': ['whoami','ping','ifconfig','grep','find','awk','sed','vi','top','ps','df','du','free','wget','curl','ssh','tar','gzip','chmod','chown','id','which','env','cat','ls','cp','mv','rm','mkdir','touch','echo','date','uname'],
+      '/tmp': [],
+      '/proc': ['cpuinfo','meminfo','uptime','version','net'],
+    };
+    const termEnv = { USER:'root', HOME:'/root', SHELL:'/bin/sh', TERM:'linux', PATH:'/usr/bin:/bin:/usr/local/bin' };
 
-        if (cmd === 'clear') {
-          out.innerText = '';
-        } else if (cmd === 'help') {
-          out.innerText += 'Available commands: uname, ls, neofetch, snake, tetris, wifi, snap, date, clear, exit\n\n';
-        } else if (cmd === 'uname -a' || cmd === 'uname') {
-          out.innerText += 'Linux microos 7.0.0-43-generic #1 SMP PREEMPT x86_64 GNU/Linux\n\n';
-        } else if (cmd === 'ls') {
-          out.innerText += 'bin   dev   etc   home  lib   mnt   proc  root  sbin  sys   tmp   usr   var\n\n';
-        } else if (cmd === 'snake') {
-          openWindow('snake');
-        } else if (cmd === 'tetris') {
-          openWindow('tetris');
-        } else if (cmd === 'wifi') {
-          openWindow('wifi');
-        } else if (cmd === 'neofetch') {
-          out.innerText += 'OS: MicroOS Modern Edition v5.2 x86_64\nKernel: 7.0.0-43-generic\nUptime: 24 mins\nPackages: 24 (busybox, snap, apt)\nShell: sh (BusyBox)\nWM: MicroOS Desktop Modern\nMemory: 673MB / 7793MB\n\n';
-        } else if (cmd) {
-          out.innerText += `sh: ${cmd}: command not found\n\n`;
+    function termPrint(out, text) { out.innerText += text + '\n'; }
+
+    function resolvePath(p) {
+      if (!p || p === '~') return '/root';
+      if (p.startsWith('~/')) return '/root/' + p.slice(2);
+      if (!p.startsWith('/')) return termCwd.replace(/\/$/, '') + '/' + p;
+      return p.replace(/\/+/g,'/').replace(/\/$/, '') || '/';
+    }
+
+    function handleTerminalKey(e) {
+      const input = document.getElementById('termInput');
+      if (e.key === 'ArrowUp') { if (termHistIdx < termHistory.length-1) termHistIdx++; input.value = termHistory[termHistIdx]||''; e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') { if (termHistIdx > 0) termHistIdx--; input.value = termHistory[termHistIdx]||''; e.preventDefault(); return; }
+      if (e.key !== 'Enter') return;
+
+      const raw = input.value.trim();
+      const out = document.getElementById('termOutput');
+      const prompt = 'root@microos:' + termCwd + '# ';
+
+      if (!raw) { out.innerText += '\n'; input.value = ''; out.parentElement.scrollTop = out.parentElement.scrollHeight; return; }
+      termHistory.unshift(raw); termHistIdx = -1;
+      out.innerText += prompt + raw + '\n';
+
+      const parts = raw.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+      const cmd = parts[0];
+      const args = parts.slice(1).map(a => a.replace(/^['"]|['"]$/g,''));
+      const now = new Date();
+      const upMins = Math.floor((now - new Date(now.toDateString())) / 60000);
+
+      switch(cmd) {
+        case 'clear': out.innerText = ''; break;
+        case 'whoami': termPrint(out, 'root'); break;
+        case 'id': termPrint(out, 'uid=0(root) gid=0(root) groups=0(root),4(adm),10(wheel)'); break;
+        case 'who':
+          if (args[0]==='am' && args[1]==='i') termPrint(out, 'root     tty1  ' + now.toLocaleString());
+          else termPrint(out, 'root     tty1  ' + now.toLocaleString());
+          break;
+        case 'hostname': termPrint(out, 'microos'); break;
+        case 'uname':
+          if (args.includes('-a')) termPrint(out, 'Linux microos 7.0.0-43-generic #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux');
+          else if (args.includes('-r')) termPrint(out, '7.0.0-43-generic');
+          else if (args.includes('-s')) termPrint(out, 'Linux');
+          else if (args.includes('-m')) termPrint(out, 'x86_64');
+          else if (args.includes('-n')) termPrint(out, 'microos');
+          else termPrint(out, 'Linux');
+          break;
+        case 'echo': termPrint(out, args.join(' ').replace(/\$USER/g,'root').replace(/\$HOME/g,'/root').replace(/\$HOSTNAME/g,'microos').replace(/\$SHELL/g,'/bin/sh')); break;
+        case 'env': Object.entries(termEnv).forEach(([k,v]) => termPrint(out, k+'='+v)); break;
+        case 'pwd': termPrint(out, termCwd); break;
+        case 'cd': { const dest = args[0] ? resolvePath(args[0]) : '/root'; termCwd = dest; break; }
+        case 'ls': {
+          const target = args.find(a=>!a.startsWith('-')) ? resolvePath(args.find(a=>!a.startsWith('-'))) : termCwd;
+          const list = termFS[target] || ['(empty)'];
+          if (args.includes('-la') || args.includes('-l') || args.includes('-al')) {
+            termPrint(out, 'total ' + list.length*4);
+            list.forEach(f => termPrint(out, 'drwxr-xr-x  1 root root  4096 Nov 23 00:00 ' + f));
+          } else termPrint(out, list.join('  '));
+          break;
         }
-        input.value = '';
-        out.parentElement.scrollTop = out.parentElement.scrollHeight;
+        case 'cat':
+          if (!args[0]) { termPrint(out, 'cat: missing operand'); break; }
+          if (args[0].includes('passwd')) termPrint(out, 'root:x:0:0:root:/root:/bin/sh\nnobody:x:65534:65534:nobody:/:/bin/sh');
+          else if (args[0].includes('hostname')) termPrint(out, 'microos');
+          else if (args[0].includes('resolv')) termPrint(out, 'nameserver 8.8.8.8\nnameserver 1.1.1.1');
+          else if (args[0].includes('hosts')) termPrint(out, '127.0.0.1   localhost\n127.0.1.1   microos');
+          else termPrint(out, 'cat: ' + args[0] + ': No such file or directory');
+          break;
+        case 'date': termPrint(out, now.toString()); break;
+        case 'uptime': termPrint(out, ' ' + now.toTimeString().slice(0,5) + ' up ' + upMins + ' min,  1 user,  load average: 0.01, 0.01, 0.00'); break;
+        case 'ps':
+          termPrint(out, '  PID TTY          TIME CMD');
+          termPrint(out, '    1 tty1     00:00:01 system_init');
+          termPrint(out, '    2 tty1     00:00:12 compositor_gui');
+          termPrint(out, '    3 tty1     00:00:00 iwd_wifi_daemon');
+          termPrint(out, '   42 tty1     00:00:00 sh');
+          break;
+        case 'top': case 'htop':
+          termPrint(out, 'top - ' + now.toTimeString().slice(0,8) + ' up ' + upMins + ' min, 1 user');
+          termPrint(out, 'Tasks:  5 total,  1 running,  4 sleeping');
+          termPrint(out, '%Cpu(s):  0.7 us,  0.3 sy, 98.9 id');
+          termPrint(out, 'MiB Mem:   1024.0 total,   386.0 free,   638.0 used');
+          termPrint(out, '  PID USER PR  VIRT    RES %CPU %MEM  COMMAND');
+          termPrint(out, '    1 root 20  4100   2048  0.2  0.2  system_init');
+          termPrint(out, '    2 root 20 16200   8192 12.4  0.8  compositor_gui');
+          if (cmd==='htop') openWindow('sysmon');
+          break;
+        case 'free':
+          termPrint(out, '               total        used        free');
+          termPrint(out, 'Mem:         1048576      638976      409600');
+          termPrint(out, 'Swap:              0           0           0');
+          break;
+        case 'df':
+          termPrint(out, 'Filesystem     1K-blocks    Used Available Use% Mounted on');
+          termPrint(out, '/dev/sda1         524288   15036    509252   3% /');
+          termPrint(out, 'tmpfs             524288       0    524288   0% /dev/shm');
+          break;
+        case 'du': termPrint(out, '4\t' + (args[0]||termCwd)); break;
+        case 'ifconfig':
+          termPrint(out, 'eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500');
+          termPrint(out, '      inet 10.0.2.15  netmask 255.255.255.0  broadcast 10.0.2.255');
+          termPrint(out, '      ether 08:00:27:e1:bf:64  txqueuelen 1000');
+          termPrint(out, 'lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536');
+          termPrint(out, '    inet 127.0.0.1  netmask 255.0.0.0');
+          break;
+        case 'ip':
+          if (args[0]==='addr'||args[0]==='a') { termPrint(out, '1: lo: <LOOPBACK,UP>  inet 127.0.0.1/8'); termPrint(out, '2: eth0: <BROADCAST,MULTICAST,UP>  inet 10.0.2.15/24'); }
+          else if (args[0]==='route'||args[0]==='r') { termPrint(out, 'default via 10.0.2.2 dev eth0'); termPrint(out, '10.0.2.0/24 dev eth0  src 10.0.2.15'); }
+          else termPrint(out, 'Usage: ip [addr|route|link]');
+          break;
+        case 'ping': {
+          const host = args.find(a=>!a.startsWith('-')) || '';
+          if (!host) { termPrint(out, 'ping: missing host operand'); break; }
+          const count = args.includes('-c') ? parseInt(args[args.indexOf('-c')+1])||4 : 4;
+          const ip = (host==='localhost'||host==='127.0.0.1') ? '127.0.0.1' : '8.8.8.8';
+          termPrint(out, 'PING ' + host + ' (' + ip + '): 56 data bytes');
+          for(let i=0;i<count;i++) termPrint(out, '64 bytes from ' + ip + ': seq=' + i + ' ttl=64 time=' + (0.1+Math.random()*0.4).toFixed(3) + ' ms');
+          termPrint(out, '--- ' + host + ' ping statistics ---');
+          termPrint(out, count + ' packets transmitted, ' + count + ' received, 0% packet loss');
+          break;
+        }
+        case 'netstat':
+          termPrint(out, 'Proto Recv-Q Local Address           State');
+          termPrint(out, 'tcp        0 0.0.0.0:22              LISTEN');
+          termPrint(out, 'tcp        0 127.0.0.1:8080          LISTEN');
+          break;
+        case 'nslookup': case 'dig':
+          termPrint(out, 'Server:\t\t8.8.8.8\nName:\t' + (args[0]||'google.com') + '\nAddress: 142.250.183.46');
+          break;
+        case 'curl': case 'wget':
+          termPrint(out, cmd + ': connecting to ' + (args[0]||'<url>') + '...\n(Network simulation — NAT bridged)');
+          break;
+        case 'ssh': termPrint(out, 'ssh: connect to host ' + (args[0]||'<host>') + ' — connection refused (NAT mode)'); break;
+        case 'mkdir': case 'touch': case 'rm': case 'cp': case 'mv': case 'chmod': case 'chown':
+          if ((cmd==='cp'||cmd==='mv') && args.length < 2) termPrint(out, cmd + ': missing operand');
+          else termPrint(out, '');
+          break;
+        case 'grep': termPrint(out, 'grep: ' + (args[args.length-1]||'<file>') + ': No such file or directory'); break;
+        case 'find': termPrint(out, '.'); break;
+        case 'which': termPrint(out, args[0] ? '/usr/bin/'+args[0] : 'which: missing operand'); break;
+        case 'man': termPrint(out, 'man: no manual entry for ' + (args[0]||'(null)') + "\nTry 'help' for built-in commands."); break;
+        case 'history': termHistory.slice(0,10).reverse().forEach((h,i) => termPrint(out, '  '+(i+1)+'  '+h)); break;
+        case 'alias': termPrint(out, "alias ll='ls -la'\nalias cls='clear'\nalias restart='reboot'"); break;
+        case 'export':
+          if (args[0]&&args[0].includes('=')) { const [k,v]=args[0].split('='); termEnv[k]=v; }
+          else termPrint(out, Object.entries(termEnv).map(([k,v])=>'declare -x '+k+'="'+v+'"').join('\n'));
+          break;
+        case 'neofetch':
+          termPrint(out, '    .---.       MicroOS Modern Edition v5.2');
+          termPrint(out, '   /     \\      OS:      MicroOS 5.2 x86_64');
+          termPrint(out, '  | () () |     Kernel:  7.0.0-43-generic');
+          termPrint(out, '   \\  ^  /      Uptime:  ' + upMins + ' minutes');
+          termPrint(out, '    |||||       Shell:   /bin/sh (BusyBox)');
+          termPrint(out, '    |||||       Memory:  638MB / 1024MB');
+          break;
+        case 'snake': openWindow('snake'); break;
+        case 'tetris': openWindow('tetris'); break;
+        case 'wifi': openWindow('wifi'); break;
+        case 'arcade': openWindow('arcade'); break;
+        case 'snap': case 'store': openWindow('snapstore'); break;
+        case 'desktop': case 'gui': termPrint(out, 'Already running MicroOS Modern Desktop.'); break;
+        case 'reboot': case 'shutdown': case 'poweroff':
+          termPrint(out, cmd + ': system would ' + (cmd==='reboot'?'restart':'shutdown') + '.\n(Simulated — no action taken)'); break;
+        case 'su': case 'sudo': termPrint(out, 'Already running as root.'); break;
+        case 'passwd': termPrint(out, 'passwd: Password updated successfully.'); break;
+        case 'help':
+          termPrint(out, 'MicroOS Terminal v3.0 — Available Commands:');
+          termPrint(out, '  SYSTEM:   whoami  id  hostname  uname  uptime  date  env  history');
+          termPrint(out, '  FILES:    ls  cd  pwd  cat  cp  mv  rm  mkdir  touch  chmod  find  which');
+          termPrint(out, '  NETWORK:  ping  ifconfig  ip  netstat  nslookup  curl  wget  ssh');
+          termPrint(out, '  PROCESS:  ps  top  htop  free  df  du');
+          termPrint(out, '  APPS:     snake  tetris  wifi  arcade  snap  neofetch');
+          termPrint(out, '  MISC:     echo  export  man  alias  clear  exit  help');
+          break;
+        case 'exit': closeWindow('terminal'); break;
+        default:
+          if (raw.includes('=') && !raw.includes(' ')) { const [k,v]=raw.split('='); termEnv[k]=v||''; }
+          else termPrint(out, 'sh: ' + cmd + ': command not found\nType \'help\' for available commands.');
       }
+      out.innerText += '\n';
+      input.value = '';
+      out.parentElement.scrollTop = out.parentElement.scrollHeight;
     }
 
     function setAccent(color) {

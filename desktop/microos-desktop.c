@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <math.h>
 
@@ -202,6 +203,7 @@ static void open_window(int type);
 static void close_focused_window(void);
 static void launch_app(const char *cmd, const char *name);
 static void launch_terminal(void);
+static void handle_mouse(MEVENT *ev);
 
 /* ═══════════════════════════════════════════════════════════════════
    COLOR INITIALIZATION (256-color with elegant 16-color fallback)
@@ -514,7 +516,7 @@ static void draw_mouse_cursor(void)
 {
     if (mouse_active && mouse_y >= 0 && mouse_y < ROWS && mouse_x >= 0 && mouse_x < COLS) {
         attron(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
-        mvaddch(mouse_y, mouse_x, '^');
+        mvaddch(mouse_y, mouse_x, '>');
         attroff(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
     }
 }
@@ -607,7 +609,7 @@ static void draw_all(void)
     getmaxyx(stdscr, ROWS, COLS);
     if (ROWS < 25) ROWS = 25;
     if (COLS < 80) COLS = 80;
-    clear();
+    /* Do NOT call clear() - erasing the whole buffer every frame causes screen blinking */
     draw_wallpaper();
     draw_icons();
     draw_dock();
@@ -942,6 +944,82 @@ static void activate_icon(int idx)
     }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   HARDWARE MOUSE DRIVER (/dev/input/mice and /dev/psaux)
+   ═══════════════════════════════════════════════════════════════════ */
+static int mouse_fd = -1;
+static float mouse_fx = 40.0f;
+static float mouse_fy = 12.0f;
+static int mouse_prev_left = 0;
+static int mouse_prev_right = 0;
+
+static void init_mouse_dev(void)
+{
+    if (mouse_fd >= 0) return;
+    mouse_fd = open("/dev/input/mice", O_RDONLY | O_NONBLOCK);
+    if (mouse_fd < 0) {
+        mouse_fd = open("/dev/input/mouse0", O_RDONLY | O_NONBLOCK);
+    }
+    if (mouse_fd < 0) {
+        mouse_fd = open("/dev/psaux", O_RDONLY | O_NONBLOCK);
+    }
+    if (mouse_fd >= 0) {
+        mouse_active = 1;
+    }
+}
+
+static void poll_mouse_dev(void)
+{
+    if (mouse_fd < 0) {
+        init_mouse_dev();
+        if (mouse_fd < 0) return;
+    }
+    signed char packet[3];
+    while (read(mouse_fd, packet, 3) == 3) {
+        mouse_active = 1;
+        int btn_left = packet[0] & 0x1;
+        int btn_right = packet[0] & 0x2;
+        int dx = packet[1];
+        int dy = packet[2];
+
+        /* Scale motion for smooth 80x25 grid navigation */
+        mouse_fx += (float)dx * 0.40f;
+        mouse_fy -= (float)dy * 0.22f; /* Inverted Y in PS/2 */
+
+        if (mouse_fx < 0) mouse_fx = 0;
+        if (mouse_fx >= COLS) mouse_fx = COLS - 1;
+        if (mouse_fy < 0) mouse_fy = 0;
+        if (mouse_fy >= ROWS) mouse_fy = ROWS - 1;
+
+        int new_x = (int)mouse_fx;
+        int new_y = (int)mouse_fy;
+
+        if (new_x != mouse_x || new_y != mouse_y) {
+            mouse_x = new_x;
+            mouse_y = new_y;
+            need_redraw = 1;
+        }
+
+        /* Left click */
+        if (btn_left && !mouse_prev_left) {
+            MEVENT ev;
+            ev.x = mouse_x;
+            ev.y = mouse_y;
+            ev.bstate = BUTTON1_CLICKED;
+            handle_mouse(&ev);
+            need_redraw = 1;
+        }
+        /* Right click toggles Options menu */
+        else if (btn_right && !mouse_prev_right) {
+            options_open = !options_open;
+            options_item = 0;
+            need_redraw = 1;
+        }
+        mouse_prev_left = btn_left;
+        mouse_prev_right = btn_right;
+    }
+}
+
 static void handle_mouse(MEVENT *ev)
 {
     mouse_active = 1;
@@ -1004,11 +1082,11 @@ static void handle_mouse(MEVENT *ev)
         }
     }
 
-    /* Icon clicks */
+    /* Icon clicks (responsive 2-row clickable area) */
     for (int i = 0; i < TOTAL_APPS; i++) {
         int r, c;
         get_icon_coords(i, &r, &c);
-        if (ev->y == r && ev->x >= c && ev->x <= c + 24) {
+        if ((ev->y == r || ev->y == r + 1) && ev->x >= c && ev->x <= c + 24) {
             selected_icon = i;
             activate_icon(i);
             return;
@@ -1151,7 +1229,7 @@ int main(void)
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-    timeout(1000);
+    timeout(25); /* 40 FPS polling for ultra-smooth mouse navigation */
     scrollok(stdscr, FALSE);
 
     if (!has_colors()) {
@@ -1161,6 +1239,7 @@ int main(void)
     }
     init_colors();
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+    init_mouse_dev();
 
     FILE *wf = fopen("/run/wifi.state", "r");
     if (!wf) wf = fopen("/etc/wifi_ssid", "r");
@@ -1172,15 +1251,23 @@ int main(void)
         fclose(wf);
     }
 
+    time_t last_clock = 0;
     while (running) {
+        poll_mouse_dev();
+
+        time_t now = time(NULL);
+        if (now != last_clock) {
+            last_clock = now;
+            need_redraw = 1;
+        }
+
         if (need_redraw) {
             draw_all();
             need_redraw = 0;
         }
+
         int ch = getch();
-        if (ch == ERR) {
-            need_redraw = 1; /* Clock tick update */
-        } else {
+        if (ch != ERR) {
             handle_input(ch);
         }
     }

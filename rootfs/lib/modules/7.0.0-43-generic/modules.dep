@@ -1,9 +1,11 @@
 ahci.ko.zst: libahci.ko.zst
 nvme.ko.zst: nvme-core.ko.zst
 e1000.ko.zst:
+psmouse.ko.zst:
 nvme-core.ko.zst:
 e1000e.ko.zst:
 r8169.ko.zst:
+vboxguest.ko.zst:
 cfg80211.ko.zst:
 usb-storage.ko.zst:
 libahci.ko.zst:

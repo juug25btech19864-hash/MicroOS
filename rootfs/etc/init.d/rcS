@@ -29,3 +29,9 @@ if [ ! -s /etc/resolv.conf ]; then
 fi
 
 echo "[rcS] System ready."
+
+# Mouse and VirtualBox Guest Support
+modprobe -a psmouse vboxguest 2>/dev/null || true
+insmod /lib/modules/7.0.0-43-generic/psmouse.ko.zst 2>/dev/null || true
+insmod /lib/modules/7.0.0-43-generic/vboxguest.ko.zst 2>/dev/null || true
+chmod -R 666 /dev/input /dev/psaux 2>/dev/null || true

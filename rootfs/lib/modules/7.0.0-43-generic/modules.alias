@@ -425,6 +425,8 @@ alias pci:v00008086d00001008sv*sd*bc*sc*i* e1000
 alias pci:v00008086d00001004sv*sd*bc*sc*i* e1000
 alias pci:v00008086d00001001sv*sd*bc*sc*i* e1000
 alias pci:v00008086d00001000sv*sd*bc*sc*i* e1000
+alias serio:ty05pr*id*ex* psmouse
+alias serio:ty01pr*id*ex* psmouse
 alias pci:v00008086d000057BAsv*sd*bc*sc*i* e1000e
 alias pci:v00008086d000057B9sv*sd*bc*sc*i* e1000e
 alias pci:v00008086d000057B8sv*sd*bc*sc*i* e1000e
@@ -560,6 +562,7 @@ alias pci:v000010ECd00008136sv*sd*bc*sc*i* r8169
 alias pci:v000010ECd00008129sv*sd*bc*sc*i* r8169
 alias pci:v000010ECd00002600sv*sd*bc*sc*i* r8169
 alias pci:v000010ECd00002502sv*sd*bc*sc*i* r8169
+alias pci:v000080EEd0000CAFEsv00000000sd00000000bc*sc*i* vboxguest
 alias net-pf-16-proto-16-family-nl80211 cfg80211
 alias usb:v*p*d*dc*dsc*dp*ic08isc06ip50in* usb_storage
 alias usb:v*p*d*dc*dsc*dp*ic08isc05ip50in* usb_storage

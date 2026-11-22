@@ -39,7 +39,10 @@ hostname microos 2>/dev/null || true
 
 # 5. Load Kernel Modules if present
 if [ -d /lib/modules ]; then
-    modprobe -a ahci nvme e1000 e1000e r8169 usb_storage xhci_hcd 2>/dev/null || true
+    modprobe -a ahci nvme e1000 e1000e r8169 usb_storage xhci_hcd psmouse vboxguest 2>/dev/null || true
+    insmod /lib/modules/7.0.0-43-generic/psmouse.ko.zst 2>/dev/null || true
+    insmod /lib/modules/7.0.0-43-generic/vboxguest.ko.zst 2>/dev/null || true
+    chmod -R 666 /dev/input /dev/psaux 2>/dev/null || true
 fi
 
 # 6. Automatic Persistent Storage Scanning

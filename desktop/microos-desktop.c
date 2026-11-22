@@ -1,11 +1,37 @@
 /*
- * MicroOS Desktop Environment
- * Classic Windows 11 / Slate TUI Desktop using ncurses
- * Pixel-faithful match to classic MicroOS Dashboard layout
+ * MicroOS — Modern Desktop Environment v5.2 (Pixel-Faithful Edition)
+ *
+ * Visual Architecture:
+ *   - Acrylic Top Bar:
+ *       [*] Cyan Logo | Options v | Path breadcrumbs | [ Date & Time ] | (vol) | Red Power (X)
+ *   - Exact 2-Column Desktop Icons Grid (Left Side, 22 apps):
+ *       Col 1 (x=2):  File System, Home, Developer Terminal, System Monitor,
+ *                     Storage Explorer, Settings, Network Explorer,
+ *                     Microkernel, Hardware & Devices, Producer-Consumer,
+ *                     Boot Benchmark
+ *       Col 2 (x=27): Files, Web Browser, APT Package Mgr,
+ *                     Wi-Fi Manager, Snap Store, Snake Game,
+ *                     Retro Arcade Hub, Tetris Arcade, 2048 Puzzle,
+ *                     Pong Arcade, Minesweeper
+ *       Row spacing:  Every 2 rows (r = 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+ *   - Organic Flowing 3D Satin Wave Wallpaper (Columns 54 to 79):
+ *       Sweeping S-curve from top-right to center-right with:
+ *       Hot glowing core (#/white on magenta) -> Electric pink (%) ->
+ *       Royal purple (*) -> Indigo blue (+) -> Ambient shadow (.)
+ *   - Floating Bottom Dock (Row 24):
+ *       Left: Colored app tiles: [*] [V] [F] [>] [G] [W] [%] [#]
+ *       Right: Workspace Pills: [Workspace 1] [W2] [W3] [W4] [#]
+ *   - Host-grade Wi-Fi Quick Settings Flyout (Connected + 7 In-Range Networks with signal bars)
+ *   - Full Arcade Games Suite + POSIX Producer-Consumer Simulator
  */
 
 #define _GNU_SOURCE
 #include <ncurses.h>
+
+#ifndef ROWS
+#define ROWS LINES
+#endif
+
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,557 +42,818 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
+#include <math.h>
 
-#ifndef ROWS
-#define ROWS LINES
-#endif
+/* ═══════════════════════════════════════════════════════════════════
+   COLOR DEFINITIONS
+   ═══════════════════════════════════════════════════════════════════ */
+#define C_BG            1   /* Midnight background */
+#define C_TOPBAR        2   /* Top bar text & surface */
+#define C_TOP_LOGO      3   /* Bright cyan logo */
+#define C_TOP_CLOCK     4   /* Top bar clock badge */
+#define C_TOP_POWER     5   /* Red power button */
 
-/* ─── Color Pairs ─────────────────────────────────────────────────── */
-#define C_DESKTOP     1   /* Desktop background: white on dark navy/slate */
-#define C_TASKBAR     2   /* Taskbar: black on light gray/white */
-#define C_START_BTN   3   /* Start button: white on dark blue */
-#define C_TASK_TAB    4   /* Active window tab: white on dark slate */
-#define C_TRAY        5   /* Tray text: black on light gray */
-#define C_ICON_TITLE  6   /* Icon title: bold white on desktop */
-#define C_ICON_SEL    7   /* Selected icon: black on cyan/gold */
-#define C_BADGE_GOLD  8   /* File system gold */
-#define C_BADGE_BLUE  9   /* Home/Folder blue */
-#define C_BADGE_GRAY  10  /* Terminal gray */
-#define C_BADGE_GREEN 11  /* Snake green */
-#define C_BADGE_PURP  12  /* Producer-consumer purple */
-#define C_BADGE_RED   13  /* Wi-Fi red */
-#define C_BADGE_CYAN  14  /* Dashboard cyan */
-#define C_BADGE_LBLU  15  /* Tool light blue */
-#define C_WIN_TITLE   16  /* Window title: white on dark slate */
-#define C_WIN_CLOSE   17  /* Window close: white on red */
-#define C_WIN_BODY    18  /* Window body: black on white */
-#define C_WIN_HEADER  19  /* Window card header: dark blue on white */
-#define C_WIN_BORDER  20  /* Window border: dark slate on white */
-#define C_WIN_BAR     21  /* Resource bar: green on white */
-#define C_MENU_BG     22  /* Start menu: black on white */
-#define C_MENU_SEL    23  /* Start menu selected: white on blue */
+/* Wave wallpaper layers */
+#define C_WAVE_CORE     6   /* Core highlight (white on magenta) */
+#define C_WAVE_PINK     7   /* Electric magenta/pink */
+#define C_WAVE_PURPLE   8   /* Vivid purple */
+#define C_WAVE_INDIGO   9   /* Indigo blue */
+#define C_WAVE_SHADOW   10  /* Deep shadow */
 
-/* ─── Applications / Desktop Icons ────────────────────────────────── */
-#define TOTAL_ICONS 10
+/* Icon badge colors */
+#define C_BADGE_WHITE   11  /* File System */
+#define C_BADGE_CYAN    12  /* Developer, System Mon, Network */
+#define C_BADGE_BLUE    13  /* Home, Microkernel */
+#define C_BADGE_ORANGE  14  /* Files, Browser, Snap Store */
+#define C_BADGE_GREEN   15  /* APT, Snake, Producer-Consumer */
+#define C_BADGE_PURPLE  16  /* Settings, Arcade */
+#define C_BADGE_RED     17  /* Hardware & Devices, Mines */
+#define C_ICON_LABEL    18  /* Crisp white label */
+#define C_ICON_SEL      19  /* Highlighted icon (gold on black) */
 
+/* Dock */
+#define C_DOCK_BG       20  /* Bottom bar background */
+#define C_DOCK_TILE_MAG 21  /* Dock tile magenta */
+#define C_DOCK_TILE_CYN 22  /* Dock tile cyan */
+#define C_DOCK_TILE_BLU 23  /* Dock tile blue */
+#define C_DOCK_TILE_ORG 24  /* Dock tile orange */
+#define C_WS_ACT        25  /* Active workspace pill (purple) */
+#define C_WS_INACT      26  /* Inactive workspace pill (slate) */
+
+/* Windows */
+#define C_WIN_TITLE     27
+#define C_WIN_BODY      28
+#define C_WIN_BORDER    29
+#define C_MENU_DROP     30
+#define C_MENU_HIGH     31
+#define C_STATUS_OK     32
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP REGISTRY (22 Apps & Games matching user requirements)
+   ═══════════════════════════════════════════════════════════════════ */
 typedef struct {
-    const char *badge;
-    const char *label;
-    int badge_pair;
-    int col;        /* 0 = left col (x=2), 1 = right col (x=17) */
-    int row;        /* 0..5 */
-    int app_type;
-    const char *cmd;
-} DesktopIcon;
+    const char *badge;     /* 4-5 char badge string: "[##]" */
+    const char *label;     /* Display name */
+    int badge_color;       /* Color pair for badge */
+    int col;               /* 0 = Left column, 1 = Right column */
+    int row;               /* 0 to 10 */
+    int app_id;
+} DesktopApp;
 
-enum {
-    APP_FILESYSTEM = 0,
-    APP_FILE_MANAGER,
-    APP_HOME,
-    APP_DASHBOARD,
-    APP_TERMINAL,
-    APP_BENCHMARK,
-    APP_SNAKE,
-    APP_APT,
-    APP_PRODUCER,
-    APP_WIFI,
-    APP_COUNT
+#define APP_FILESYSTEM  0
+#define APP_HOME        1
+#define APP_DEV         2
+#define APP_SYSMON      3
+#define APP_STORAGE     4
+#define APP_SETTINGS    5
+#define APP_NETWORK     6
+#define APP_MICROKERNEL 7
+#define APP_HARDWARE    8
+#define APP_PRODUCER    9
+#define APP_BENCHMARK   10
+
+#define APP_FILES       11
+#define APP_BROWSER     12
+#define APP_APT         13
+#define APP_WIFI        14
+#define APP_SNAPSTORE   15
+#define APP_SNAKE       16
+#define APP_ARCADE      17
+#define APP_TETRIS      18
+#define APP_2048        19
+#define APP_PONG        20
+#define APP_MINES       21
+#define APP_OPTIONS     22
+
+static const DesktopApp APPS[] = {
+    /* ── Column 1 (Left Column, x = 2) ── */
+    { "[##]",  "File System",        C_BADGE_WHITE,  0, 0,  APP_FILESYSTEM  },
+    { "[DIR]", "Home",               C_BADGE_BLUE,   0, 1,  APP_HOME        },
+    { "[>_]",  "Developer Terminal", C_BADGE_CYAN,   0, 2,  APP_DEV         },
+    { "[SYS]", "System Monitor",     C_BADGE_CYAN,   0, 3,  APP_SYSMON      },
+    { "[DRV]", "Storage Explorer",   C_BADGE_CYAN,   0, 4,  APP_STORAGE     },
+    { "[SET]", "Settings",           C_BADGE_PURPLE, 0, 5,  APP_SETTINGS    },
+    { "[NET]", "Network Explorer",   C_BADGE_CYAN,   0, 6,  APP_NETWORK     },
+    { "[CPU]", "Microkernel Arch",   C_BADGE_CYAN,   0, 7,  APP_MICROKERNEL },
+    { "[HW ]", "Hardware & Devices", C_BADGE_RED,    0, 8,  APP_HARDWARE    },
+    { "[PRD]", "Producer-Consumer",  C_BADGE_GREEN,  0, 9,  APP_PRODUCER    },
+    { "[BNK]", "Boot Benchmark",     C_BADGE_ORANGE, 0, 10, APP_BENCHMARK   },
+
+    /* ── Column 2 (Right Column, x = 27) ── */
+    { "[DIR]", "Files",              C_BADGE_ORANGE, 1, 0,  APP_FILES       },
+    { "[WEB]", "Web Browser",        C_BADGE_ORANGE, 1, 1,  APP_BROWSER     },
+    { "[PKG]", "APT Package Mgr",    C_BADGE_GREEN,  1, 2,  APP_APT         },
+    { "((o))", "Wi-Fi Manager",      C_BADGE_CYAN,   1, 3,  APP_WIFI        },
+    { "[SNP]", "Snap Store",         C_BADGE_ORANGE, 1, 4,  APP_SNAPSTORE   },
+    { "[SNK]", "Snake Game",         C_BADGE_GREEN,  1, 5,  APP_SNAKE       },
+    { "[ARC]", "Retro Arcade Hub",   C_BADGE_PURPLE, 1, 6,  APP_ARCADE      },
+    { "[TET]", "Tetris Arcade",      C_BADGE_BLUE,   1, 7,  APP_TETRIS      },
+    { "[204]", "2048 Puzzle",        C_BADGE_ORANGE, 1, 8,  APP_2048        },
+    { "[PNG]", "Pong Arcade",        C_BADGE_CYAN,   1, 9,  APP_PONG        },
+    { "[MNE]", "Minesweeper",        C_BADGE_RED,    1, 10, APP_MINES       },
 };
+static const int TOTAL_APPS = 22;
 
-static const DesktopIcon ICONS[TOTAL_ICONS] = {
-    /* Column 1 */
-    { "[##]",   "File System",        C_BADGE_GOLD,  0, 0, APP_FILESYSTEM,   NULL },
-    { "[DIR]",  "Home",               C_BADGE_BLUE,  0, 1, APP_HOME,         NULL },
-    { "[>_]",   "Terminal (Bash)",    C_BADGE_GRAY,  0, 2, APP_TERMINAL,     "/usr/bin/terminal" },
-    { "[SNK]",  "Snake Game",         C_BADGE_GREEN, 0, 3, APP_SNAKE,        "/usr/games/snake" },
-    { "[PRD]",  "Producer-Consumer...",C_BADGE_PURP, 0, 4, APP_PRODUCER,     "/usr/bin/producer-consumer" },
-    { "((o))",  "WiFi & Network Se...",C_BADGE_RED,  0, 5, APP_WIFI,         NULL },
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL STATE
+   ═══════════════════════════════════════════════════════════════════ */
+static int current_workspace = 1;
+static int selected_icon = 0;
+static volatile int running = 1;
+static volatile int need_redraw = 1;
+static char wifi_ssid[64] = "Jain_Student";
 
-    /* Column 2 */
-    { "[DIR]",  "File Manager",       C_BADGE_GOLD,  1, 0, APP_FILE_MANAGER, NULL },
-    { "[DASH]", "Micro OS Dashboard", C_BADGE_CYAN,  1, 1, APP_DASHBOARD,    NULL },
-    { "[TOOL]", "Boot Time Benchmark",C_BADGE_LBLU,  1, 2, APP_BENCHMARK,    "/usr/bin/boot-benchmark" },
-    { "[PKG]",  "APT Package Manager",C_BADGE_GOLD,  1, 3, APP_APT,          "/usr/bin/snap-store" },
-};
-
-/* ─── Window Management ───────────────────────────────────────────── */
-#define MAX_WINDOWS 4
-
+/* Windows */
+#define MAX_WINDOWS 6
 typedef struct {
     int active;
     int y, x, h, w;
     char title[64];
     int type;
-    char content[4096];
+    char content[6144];
     int scroll;
 } WinState;
-
 static WinState wins[MAX_WINDOWS];
 static int focused_win = -1;
-static int selected_icon = 0;
-static volatile int running = 1;
-static volatile int need_redraw = 1;
-static int start_menu_open = 0;
-static int start_menu_item = 0;
 
-/* ─── Wi-Fi Data Model ────────────────────────────────────────────── */
-typedef struct {
-    char name[48];
-    char status[24];
-    char bars[12];
-    int signal;
-    char dbm[32];
-    char proto[32];
-    char band[32];
-    char rate[48];
-    char ip[48];
-    char sec[48];
-    char bandShort[16];
-} WifiNet;
-
-static WifiNet wifi_list[16] = {
-    { "MOJO-JAN-C1-F9", "Secured", "[####]", 85, "-56 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Channel 48)", "1201 Mbps / 1201 Mbps Full Duplex", "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
-    { "MOJO-JAN-B-F7",  "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.16 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
-    { "MOJO-F2",        "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.17 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
-    { "MOJO-JAN-C1-F8", "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.18 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
-    { "Mojo-JAN-B-F9",  "Secured", "[###.]", 60, "-70 dBm, Good", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.19 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
-    { "MOJO-JAN-B-F5",  "Secured", "[##..]", 37, "-81 dBm, Fair", "802.11ax Wi-Fi 6", "5.0 GHz (Auto)",       "866.7 Mbps Full Duplex",            "10.0.2.20 (Gateway: 10.0.2.2  DNS: 8.8.8.8)", "WPA2-Personal", "5.0 GHz" },
+/* Options Menu */
+static int options_open = 0;
+static int options_item = 0;
+static const char *options_list[] = {
+    "About MicroOS",
+    "Retro Arcade Games (Snake, Tetris)",
+    "Producer-Consumer Simulation",
+    "Boot Time Benchmark",
+    "Wi-Fi Network Manager",
+    "Developer Terminal Shell",
+    "Restart Desktop Session",
+    "Shut Down Machine"
 };
-static int wifi_count = 6;
-static char wifi_ssid[64] = "MOJO-JAN-C1-F9";
+static const int NUM_OPTIONS = 8;
 
-/* ─── Forward Declarations ────────────────────────────────────────── */
+/* Mouse pointer */
+static int mouse_active = 0;
+static int mouse_x = 40;
+static int mouse_y = 12;
+
+/* Forward declarations */
 static void draw_all(void);
 static void open_window(int type);
 static void close_focused_window(void);
-static void sync_wifi_from_host(void);
-static void build_dashboard(char *buf, int sz);
-static void build_wifi(char *buf, int sz);
-static void build_filesystem(char *buf, int sz, const char *path, const char *name);
+static void launch_app(const char *cmd, const char *name);
+static void launch_terminal(void);
 
-/* ─── Color Initializer ───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   COLOR INITIALIZATION (256-color with elegant 16-color fallback)
+   ═══════════════════════════════════════════════════════════════════ */
 static void init_colors(void)
 {
     start_color();
+
     if (COLORS >= 256) {
-        init_pair(C_DESKTOP,    255,  17);  /* Dark midnight slate wallpaper */
-        init_pair(C_TASKBAR,     16, 254);  /* Light gray taskbar */
-        init_pair(C_START_BTN,  255,  24);  /* Dark blue start button */
-        init_pair(C_TASK_TAB,   255, 237);  /* Active tab */
-        init_pair(C_TRAY,        16, 254);  /* Clock / tray */
-        init_pair(C_ICON_TITLE, 255,  17);  /* Icon title */
-        init_pair(C_ICON_SEL,    16, 220);  /* Gold selection */
+        init_pair(C_BG,            17,  17);  /* Midnight base */
+        init_pair(C_TOPBAR,       255, 234);  /* Top bar white on dark-slate */
+        init_pair(C_TOP_LOGO,      51, 234);  /* Cyan logo */
+        init_pair(C_TOP_CLOCK,    255,  54);  /* Purple clock pill */
+        init_pair(C_TOP_POWER,    255, 196);  /* Red power pill */
 
-        init_pair(C_BADGE_GOLD, 214,  17);  /* Gold */
-        init_pair(C_BADGE_BLUE,  39,  17);  /* Blue */
-        init_pair(C_BADGE_GRAY, 250, 236);  /* Gray */
-        init_pair(C_BADGE_GREEN, 46,  17);  /* Green */
-        init_pair(C_BADGE_PURP, 141,  17);  /* Purple */
-        init_pair(C_BADGE_RED,  196,  17);  /* Red */
-        init_pair(C_BADGE_CYAN,  51,  17);  /* Cyan */
-        init_pair(C_BADGE_LBLU,  45,  17);  /* Light blue */
+        init_pair(C_WAVE_CORE,    231, 198);  /* White on neon pink */
+        init_pair(C_WAVE_PINK,    198,  17);  /* Neon pink */
+        init_pair(C_WAVE_PURPLE,  129,  17);  /* Royal purple */
+        init_pair(C_WAVE_INDIGO,   45,  17);  /* Indigo / bright cyan */
+        init_pair(C_WAVE_SHADOW,   60,  17);  /* Shadow */
 
-        init_pair(C_WIN_TITLE,  255, 236);  /* Dark window title */
-        init_pair(C_WIN_CLOSE,  255, 196);  /* Red close button */
-        init_pair(C_WIN_BODY,    16, 255);  /* Clean white window body */
-        init_pair(C_WIN_HEADER,  21, 255);  /* Bold blue header on white */
-        init_pair(C_WIN_BORDER, 240, 255);  /* Border */
-        init_pair(C_WIN_BAR,     28, 255);  /* Progress green */
-        init_pair(C_MENU_BG,     16, 254);  /* Start menu */
-        init_pair(C_MENU_SEL,   255,  24);  /* Start menu selected */
+        init_pair(C_BADGE_WHITE,  232, 255);  /* Black on white */
+        init_pair(C_BADGE_CYAN,    16,  51);  /* Black on cyan */
+        init_pair(C_BADGE_BLUE,   255,  33);  /* White on blue */
+        init_pair(C_BADGE_ORANGE,  16, 208);  /* Black on orange */
+        init_pair(C_BADGE_GREEN,  255,  28);  /* White on green */
+        init_pair(C_BADGE_PURPLE, 255,  93);  /* White on purple */
+        init_pair(C_BADGE_RED,    255, 160);  /* White on red */
+
+        init_pair(C_ICON_LABEL,   255,  17);  /* White on midnight */
+        init_pair(C_ICON_SEL,      16, 220);  /* Black on gold */
+
+        init_pair(C_DOCK_BG,      255, 233);  /* Dark dock */
+        init_pair(C_DOCK_TILE_MAG,255, 198);
+        init_pair(C_DOCK_TILE_CYN, 16,  51);
+        init_pair(C_DOCK_TILE_BLU,255,  33);
+        init_pair(C_DOCK_TILE_ORG, 16, 208);
+        init_pair(C_WS_ACT,       255, 129);  /* White on purple */
+        init_pair(C_WS_INACT,     246, 236);  /* Grey on dark */
+
+        init_pair(C_WIN_TITLE,    255,  54);  /* Title purple */
+        init_pair(C_WIN_BODY,     255, 233);  /* Dark window body */
+        init_pair(C_WIN_BORDER,   198, 233);  /* Magenta border */
+        init_pair(C_MENU_DROP,     16, 254);  /* Menu */
+        init_pair(C_MENU_HIGH,    255,  54);  /* Menu highlight */
+        init_pair(C_STATUS_OK,     48, 234);  /* Green */
     } else {
-        init_pair(C_DESKTOP,    COLOR_WHITE, COLOR_BLUE);
-        init_pair(C_TASKBAR,    COLOR_BLACK, COLOR_WHITE);
-        init_pair(C_START_BTN,  COLOR_WHITE, COLOR_BLACK);
-        init_pair(C_TASK_TAB,   COLOR_WHITE, COLOR_BLACK);
-        init_pair(C_TRAY,       COLOR_BLACK, COLOR_WHITE);
-        init_pair(C_ICON_TITLE, COLOR_WHITE, COLOR_BLUE);
-        init_pair(C_ICON_SEL,   COLOR_BLACK, COLOR_CYAN);
-        init_pair(C_BADGE_GOLD, COLOR_YELLOW, COLOR_BLUE);
-        init_pair(C_BADGE_BLUE, COLOR_CYAN,   COLOR_BLUE);
-        init_pair(C_BADGE_GRAY, COLOR_WHITE,  COLOR_BLACK);
-        init_pair(C_BADGE_GREEN,COLOR_GREEN, COLOR_BLUE);
-        init_pair(C_BADGE_PURP, COLOR_MAGENTA,COLOR_BLUE);
-        init_pair(C_BADGE_RED,  COLOR_RED,   COLOR_BLUE);
-        init_pair(C_BADGE_CYAN, COLOR_CYAN,  COLOR_BLUE);
-        init_pair(C_BADGE_LBLU, COLOR_CYAN,  COLOR_BLUE);
-        init_pair(C_WIN_TITLE,  COLOR_WHITE, COLOR_BLACK);
-        init_pair(C_WIN_CLOSE,  COLOR_WHITE, COLOR_RED);
-        init_pair(C_WIN_BODY,   COLOR_BLACK, COLOR_WHITE);
-        init_pair(C_WIN_HEADER, COLOR_BLUE,  COLOR_WHITE);
-        init_pair(C_WIN_BORDER, COLOR_BLACK, COLOR_WHITE);
-        init_pair(C_WIN_BAR,    COLOR_GREEN, COLOR_WHITE);
-        init_pair(C_MENU_BG,    COLOR_BLACK, COLOR_WHITE);
-        init_pair(C_MENU_SEL,   COLOR_WHITE, COLOR_BLUE);
+        /* Standard 16-color VGA Console */
+        init_pair(C_BG,            COLOR_WHITE,   COLOR_BLACK);
+        init_pair(C_TOPBAR,        COLOR_WHITE,   COLOR_BLACK);
+        init_pair(C_TOP_LOGO,      COLOR_CYAN,    COLOR_BLACK);
+        init_pair(C_TOP_CLOCK,     COLOR_WHITE,   COLOR_BLUE);
+        init_pair(C_TOP_POWER,     COLOR_WHITE,   COLOR_RED);
+
+        init_pair(C_WAVE_CORE,     COLOR_WHITE,   COLOR_MAGENTA);
+        init_pair(C_WAVE_PINK,     COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(C_WAVE_PURPLE,   COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(C_WAVE_INDIGO,   COLOR_BLUE,    COLOR_BLACK);
+        init_pair(C_WAVE_SHADOW,   COLOR_BLUE,    COLOR_BLACK);
+
+        init_pair(C_BADGE_WHITE,   COLOR_BLACK,   COLOR_WHITE);
+        init_pair(C_BADGE_CYAN,    COLOR_BLACK,   COLOR_CYAN);
+        init_pair(C_BADGE_BLUE,    COLOR_WHITE,   COLOR_BLUE);
+        init_pair(C_BADGE_ORANGE,  COLOR_BLACK,   COLOR_YELLOW);
+        init_pair(C_BADGE_GREEN,   COLOR_WHITE,   COLOR_GREEN);
+        init_pair(C_BADGE_PURPLE,  COLOR_WHITE,   COLOR_MAGENTA);
+        init_pair(C_BADGE_RED,     COLOR_WHITE,   COLOR_RED);
+
+        init_pair(C_ICON_LABEL,    COLOR_WHITE,   COLOR_BLACK);
+        init_pair(C_ICON_SEL,      COLOR_BLACK,   COLOR_YELLOW);
+
+        init_pair(C_DOCK_BG,       COLOR_WHITE,   COLOR_BLACK);
+        init_pair(C_DOCK_TILE_MAG, COLOR_WHITE,   COLOR_MAGENTA);
+        init_pair(C_DOCK_TILE_CYN, COLOR_BLACK,   COLOR_CYAN);
+        init_pair(C_DOCK_TILE_BLU, COLOR_WHITE,   COLOR_BLUE);
+        init_pair(C_DOCK_TILE_ORG, COLOR_BLACK,   COLOR_YELLOW);
+        init_pair(C_WS_ACT,        COLOR_WHITE,   COLOR_MAGENTA);
+        init_pair(C_WS_INACT,      COLOR_WHITE,   COLOR_BLACK);
+
+        init_pair(C_WIN_TITLE,     COLOR_WHITE,   COLOR_BLUE);
+        init_pair(C_WIN_BODY,      COLOR_WHITE,   COLOR_BLACK);
+        init_pair(C_WIN_BORDER,    COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(C_MENU_DROP,     COLOR_BLACK,   COLOR_WHITE);
+        init_pair(C_MENU_HIGH,     COLOR_WHITE,   COLOR_BLUE);
+        init_pair(C_STATUS_OK,     COLOR_GREEN,   COLOR_BLACK);
     }
+
+    bkgd(COLOR_PAIR(C_BG) | ' ');
 }
 
-/* ─── Real-Time Host Wi-Fi Auto-Sync ──────────────────────────────── */
-static void sync_wifi_from_host(void)
+/* ═══════════════════════════════════════════════════════════════════
+   ORGANIC FLOWING 3D SATIN WAVE WALLPAPER (Right 35% of screen)
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_wallpaper(void)
 {
-    const char *hosts[] = { "10.0.2.2", "192.168.56.1", "127.0.0.1" };
-    int n_hosts = sizeof(hosts) / sizeof(hosts[0]);
-    static char response[8192];
-    int got_resp = 0;
-
-    for (int h = 0; h < n_hosts && !got_resp; h++) {
-        int s = socket(AF_INET, SOCK_STREAM, 0);
-        if (s < 0) continue;
-
-        struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = 250000;
-        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-
-        struct sockaddr_in sin;
-        memset(&sin, 0, sizeof(sin));
-        sin.sin_family = AF_INET;
-        sin.sin_port = htons(8080);
-        if (inet_pton(AF_INET, hosts[h], &sin.sin_addr) <= 0) {
-            close(s);
-            continue;
-        }
-
-        if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) == 0) {
-            const char *req = "GET /api/wifi HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-            send(s, req, strlen(req), 0);
-            int total = 0;
-            while (total < (int)sizeof(response) - 1) {
-                int n = recv(s, response + total, sizeof(response) - 1 - total, 0);
-                if (n <= 0) break;
-                total += n;
-            }
-            if (total > 0) {
-                response[total] = '\0';
-                got_resp = 1;
-            }
-        }
-        close(s);
+    /* Clear desktop workspace */
+    attron(COLOR_PAIR(C_BG));
+    for (int r = 1; r < ROWS - 1; r++) {
+        move(r, 0);
+        for (int c = 0; c < COLS; c++) addch(' ');
     }
+    attroff(COLOR_PAIR(C_BG));
 
-    if (!got_resp) return;
+    /* Wave starts at column 54, leaving cols 0..53 pristine for icons */
+    int wave_col_start = 54;
+    if (COLS < 75) wave_col_start = 48;
 
-    /* Parse connected SSID */
-    char *conn_ptr = strstr(response, "\"connected\":");
-    if (conn_ptr) {
-        char *p = strstr(conn_ptr, "\"ssid\":");
-        if (p) {
-            char *q1 = strchr(p + 7, '\"');
-            if (q1) {
-                char *q2 = strchr(q1 + 1, '\"');
-                if (q2 && (q2 - q1 < (int)sizeof(wifi_ssid))) {
-                    int len = q2 - q1 - 1;
-                    strncpy(wifi_ssid, q1 + 1, len);
-                    wifi_ssid[len] = '\0';
-                    FILE *wf = fopen("/run/wifi.state", "w");
-                    if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
-                }
+    for (int r = 1; r < ROWS - 1; r++) {
+        /*
+         * Wave center forms an elegant S-curve:
+         * Top: x ~ 70
+         * Mid: sweeps left to x ~ 61
+         * Bottom: swoops back to x ~ 69
+         */
+        float norm_r = (float)(r - 1) / (float)(ROWS - 2); /* 0.0 at top, 1.0 at bottom */
+        float wave_center = 70.0f - 9.0f * sinf(norm_r * 3.14159f);
+
+        for (int c = wave_col_start; c < COLS - 1; c++) {
+            float dist = fabsf((float)c - wave_center);
+
+            /* Diagonal lighting elevation */
+            float elevation = (1.0f - norm_r) * 1.2f + (float)(c - wave_col_start) * 0.04f;
+            float eff_dist = dist - elevation * 0.7f;
+
+            if (eff_dist < 2.2f && r >= 3 && r <= 17) {
+                /* Glowing Core Highlight */
+                attron(COLOR_PAIR(C_WAVE_CORE) | A_BOLD);
+                mvaddch(r, c, '#');
+                attroff(COLOR_PAIR(C_WAVE_CORE) | A_BOLD);
+            } else if (eff_dist < 4.5f) {
+                /* Electric Pink Petal */
+                attron(COLOR_PAIR(C_WAVE_PINK) | A_BOLD);
+                mvaddch(r, c, '%');
+                attroff(COLOR_PAIR(C_WAVE_PINK) | A_BOLD);
+            } else if (eff_dist < 8.5f) {
+                /* Royal Purple Satin Fold */
+                attron(COLOR_PAIR(C_WAVE_PURPLE) | A_BOLD);
+                mvaddch(r, c, '*');
+                attroff(COLOR_PAIR(C_WAVE_PURPLE) | A_BOLD);
+            } else if (eff_dist < 13.0f) {
+                /* Indigo Ambient Fold */
+                attron(COLOR_PAIR(C_WAVE_INDIGO));
+                mvaddch(r, c, '+');
+                attroff(COLOR_PAIR(C_WAVE_INDIGO));
+            } else if (eff_dist < 18.5f) {
+                /* Deep Shadow Texture */
+                attron(COLOR_PAIR(C_WAVE_SHADOW));
+                mvaddch(r, c, '.');
+                attroff(COLOR_PAIR(C_WAVE_SHADOW));
             }
-        }
-    }
-
-    /* Parse available array */
-    char *avail_ptr = strstr(response, "\"available\":");
-    if (avail_ptr) {
-        char *bracket = strchr(avail_ptr, '[');
-        if (bracket) {
-            int count = 0;
-            char *obj_start = strchr(bracket, '{');
-            while (obj_start && count < 16) {
-                char *obj_end = strchr(obj_start, '}');
-                if (!obj_end) break;
-
-                WifiNet *net = &wifi_list[count];
-                memset(net, 0, sizeof(WifiNet));
-
-                char *p_ssid = strstr(obj_start, "\"ssid\":");
-                if (p_ssid && p_ssid < obj_end) {
-                    char *s1 = strchr(p_ssid + 7, '\"');
-                    if (s1 && s1 < obj_end) {
-                        char *s2 = strchr(s1 + 1, '\"');
-                        if (s2 && s2 <= obj_end) {
-                            int l = s2 - s1 - 1;
-                            if (l >= (int)sizeof(net->name)) l = sizeof(net->name) - 1;
-                            strncpy(net->name, s1 + 1, l);
-                            net->name[l] = '\0';
-                        }
-                    }
-                }
-
-                if (net->name[0] != '\0') {
-                    net->signal = 75;
-                    char *p_sig = strstr(obj_start, "\"signal\":");
-                    if (p_sig && p_sig < obj_end) net->signal = atoi(p_sig + 9);
-
-                    if (net->signal >= 80) strcpy(net->bars, "[####]");
-                    else if (net->signal >= 60) strcpy(net->bars, "[###.]");
-                    else if (net->signal >= 40) strcpy(net->bars, "[##..]");
-                    else strcpy(net->bars, "[#...]");
-
-                    strcpy(net->status, "Secured");
-                    strcpy(net->sec, "WPA2-Personal");
-                    char *p_sec = strstr(obj_start, "\"sec\":");
-                    if (p_sec && p_sec < obj_end) {
-                        char *sc1 = strchr(p_sec + 6, '\"');
-                        if (sc1 && sc1 < obj_end) {
-                            char *sc2 = strchr(sc1 + 1, '\"');
-                            if (sc2 && sc2 <= obj_end) {
-                                int l = sc2 - sc1 - 1;
-                                if (l >= (int)sizeof(net->sec)) l = sizeof(net->sec) - 1;
-                                strncpy(net->sec, sc1 + 1, l);
-                                net->sec[l] = '\0';
-                            }
-                        }
-                    }
-
-                    strcpy(net->bandShort, "5.0 GHz");
-                    strcpy(net->band, "5.0 GHz (Channel 48)");
-                    char *p_band = strstr(obj_start, "\"band\":");
-                    if (p_band && p_band < obj_end) {
-                        char *b1 = strchr(p_band + 7, '\"');
-                        if (b1 && b1 < obj_end) {
-                            char *b2 = strchr(b1 + 1, '\"');
-                            if (b2 && b2 <= obj_end) {
-                                int l = b2 - b1 - 1;
-                                if (l >= (int)sizeof(net->bandShort)) l = sizeof(net->bandShort) - 1;
-                                strncpy(net->bandShort, b1 + 1, l);
-                                net->bandShort[l] = '\0';
-                                snprintf(net->band, sizeof(net->band), "%s (Auto)", net->bandShort);
-                            }
-                        }
-                    }
-
-                    strcpy(net->rate, "866.7 Mbps Full Duplex");
-                    char *p_rate = strstr(obj_start, "\"rate\":");
-                    if (p_rate && p_rate < obj_end) {
-                        char *r1 = strchr(p_rate + 7, '\"');
-                        if (r1 && r1 < obj_end) {
-                            char *r2 = strchr(r1 + 1, '\"');
-                            if (r2 && r2 <= obj_end) {
-                                int l = r2 - r1 - 1;
-                                if (l >= (int)sizeof(net->rate)) l = sizeof(net->rate) - 1;
-                                strncpy(net->rate, r1 + 1, l);
-                                net->rate[l] = '\0';
-                            }
-                        }
-                    }
-
-                    strcpy(net->dbm, "-56 dBm, Good");
-                    char *p_dbm = strstr(obj_start, "\"dbm\":");
-                    if (p_dbm && p_dbm < obj_end) {
-                        char *d1 = strchr(p_dbm + 6, '\"');
-                        if (d1 && d1 < obj_end) {
-                            char *d2 = strchr(d1 + 1, '\"');
-                            if (d2 && d2 <= obj_end) {
-                                int l = d2 - d1 - 1;
-                                if (l >= (int)sizeof(net->dbm)) l = sizeof(net->dbm) - 1;
-                                strncpy(net->dbm, d1 + 1, l);
-                                net->dbm[l] = '\0';
-                            }
-                        }
-                    }
-
-                    if (strstr(net->bandShort, "5") != NULL) strcpy(net->proto, "802.11ax Wi-Fi 6");
-                    else strcpy(net->proto, "802.11n Wi-Fi 4");
-                    snprintf(net->ip, sizeof(net->ip), "10.0.2.%d (Gateway: 10.0.2.2)", 15 + count);
-                    count++;
-                }
-                obj_start = strchr(obj_end + 1, '{');
-            }
-            if (count > 0) wifi_count = count;
         }
     }
 }
 
-/* ─── Content Builders ────────────────────────────────────────────── */
-
-static void build_dashboard(char *buf, int sz)
+/* ═══════════════════════════════════════════════════════════════════
+   TOP ACRYLIC BAR
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_topbar(void)
 {
-    snprintf(buf, sz,
-        "MicroOS Dashboard v1.0 (64-bit x86_64)\n"
-        "----------------------------------------------------------------\n"
-        "SYSTEM INFORMATION               RESOURCE MONITOR\n"
-        "Kernel   : Linux 7.0.0-generic   CPU Load : 12%% [===..........]\n"
-        "Arch     : x86_64 Intel/AMD      Memory   : 38MB / 1024MB\n"
-        "Platform : Oracle VirtualBox     Storage  : 14.8MB / 512MB [==....]\n"
-        "Uptime   : 00:00 up\n"
-        "----------------------------------------------------------------\n"
-        "PID   PROCESS NAME      STATUS    CPU %%   RAM\n"
-        " 1    system_init       Running   0.2%%    4.1 MB\n"
-        " 2    compositor_gui    Active   12.4%%   16.2 MB\n"
-        " 3    iwd_wifi_daemon   Sleeping  0.1%%    2.8 MB\n"
-        " 4    ps2_input_mgr     Sleeping  0.4%%    1.9 MB\n"
-        " 5    apt_daemon        Idle      0.0%%    3.2 MB\n"
-        "----------------------------------------------------------------\n"
-        "ACTIONS: Press [Esc] Close Window | [Tab] Switch App\n");
+    attron(COLOR_PAIR(C_TOPBAR));
+    move(0, 0);
+    for (int c = 0; c < COLS; c++) addch(' ');
+    attroff(COLOR_PAIR(C_TOPBAR));
+
+    /* Logo [*] */
+    attron(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
+    mvprintw(0, 1, "[*]");
+    attroff(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
+
+    /* Options dropdown */
+    attron(COLOR_PAIR(C_TOPBAR) | A_BOLD);
+    mvprintw(0, 5, "Options v");
+    attroff(A_BOLD);
+
+    /* Path breadcrumb */
+    if (COLS >= 75) {
+        attron(COLOR_PAIR(C_TOPBAR));
+        mvprintw(0, 15, "| Desktop\\Files\\Media");
+        attroff(COLOR_PAIR(C_TOPBAR));
+    }
+
+    /* Right side: Clock, Volume, Power */
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    char timebuf[32];
+    strftime(timebuf, sizeof(timebuf), "%a %d %b %H:%M", tm);
+
+    int clock_x = COLS - 34;
+    if (clock_x > 38) {
+        attron(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
+        mvprintw(0, clock_x, " [ %s ] ", timebuf);
+        attroff(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
+    }
+
+    int vol_x = COLS - 11;
+    if (vol_x > 42) {
+        attron(COLOR_PAIR(C_TOPBAR) | A_BOLD);
+        mvprintw(0, vol_x, "(vol)");
+        attroff(COLOR_PAIR(C_TOPBAR) | A_BOLD);
+    }
+
+    /* Red power button */
+    attron(COLOR_PAIR(C_TOP_POWER) | A_BOLD);
+    mvprintw(0, COLS - 4, "(X)");
+    attroff(COLOR_PAIR(C_TOP_POWER) | A_BOLD);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DESKTOP ICONS (Exact 2-Column Grid matching reference photo)
+   Column 1 at x=2, Column 2 at x=27
+   Row spacing: 2 lines per app (r = 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+   All 22 apps and games visible!
+   ═══════════════════════════════════════════════════════════════════ */
+static void get_icon_coords(int index, int *row_out, int *col_out)
+{
+    static const int col_x[2] = { 2, 27 };
+    *col_out = col_x[APPS[index].col];
+    *row_out = 2 + APPS[index].row * 2;
+}
+
+static void draw_icons(void)
+{
+    for (int i = 0; i < TOTAL_APPS; i++) {
+        int r, c;
+        get_icon_coords(i, &r, &c);
+        if (r >= ROWS - 1) continue;
+
+        int sel = (i == selected_icon);
+        int badge_pair = sel ? C_ICON_SEL : APPS[i].badge_color;
+
+        /* Icon Badge: e.g. [##] or [DIR] */
+        attron(COLOR_PAIR(badge_pair) | A_BOLD);
+        mvprintw(r, c, "%-5s", APPS[i].badge);
+        attroff(COLOR_PAIR(badge_pair) | A_BOLD);
+
+        /* Icon Label: directly to the right of badge */
+        int label_pair = sel ? C_ICON_SEL : C_ICON_LABEL;
+        attron(COLOR_PAIR(label_pair) | (sel ? A_BOLD : 0));
+        mvprintw(r, c + 6, "%-18s", APPS[i].label);
+        attroff(COLOR_PAIR(label_pair) | (sel ? A_BOLD : 0));
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FLOATING BOTTOM DOCK & WORKSPACE SWITCHER PILLS
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_dock(void)
+{
+    int dock_row = ROWS - 1;
+
+    attron(COLOR_PAIR(C_DOCK_BG));
+    move(dock_row, 0);
+    /* Avoid writing to (ROWS-1, COLS-1) to prevent terminal auto-scroll */
+    for (int c = 0; c < COLS - 1; c++) addch(' ');
+    attroff(COLOR_PAIR(C_DOCK_BG));
+
+    /* Pinned App Tiles */
+    struct { const char *txt; int pair; } tiles[] = {
+        { "[*]", C_DOCK_TILE_MAG },  /* Start/Options */
+        { "[M]", C_DOCK_TILE_BLU },  /* About MicroOS */
+        { "[F]", C_DOCK_TILE_ORG },  /* Files */
+        { "[>]", C_DOCK_TILE_CYN },  /* Terminal */
+        { "[G]", C_DOCK_TILE_MAG },  /* Retro Arcade Games */
+        { "[W]", C_DOCK_TILE_BLU },  /* Browser */
+        { "[%]", C_DOCK_TILE_MAG },  /* Sysmon */
+        { "[#]", C_DOCK_TILE_CYN },  /* Settings */
+    };
+
+    int tx = 1;
+    for (int i = 0; i < 8; i++) {
+        attron(COLOR_PAIR(tiles[i].pair) | A_BOLD);
+        mvprintw(dock_row, tx, "%s", tiles[i].txt);
+        attroff(COLOR_PAIR(tiles[i].pair) | A_BOLD);
+        tx += 4;
+    }
+
+    /* Vertical separator */
+    attron(COLOR_PAIR(C_DOCK_BG));
+    mvaddch(dock_row, tx, '|');
+    attroff(COLOR_PAIR(C_DOCK_BG));
+
+    /* Workspace Switcher Pills on right */
+    int ws_x = COLS - 38;
+    if (ws_x > tx + 2) {
+        for (int w = 1; w <= 4; w++) {
+            int is_act = (w == current_workspace);
+            int pair = is_act ? C_WS_ACT : C_WS_INACT;
+            attron(COLOR_PAIR(pair) | (is_act ? A_BOLD : 0));
+            if (is_act) {
+                mvprintw(dock_row, ws_x, " Workspace %d ", w);
+                ws_x += 14;
+            } else {
+                mvprintw(dock_row, ws_x, " W%d ", w);
+                ws_x += 5;
+            }
+            attroff(COLOR_PAIR(pair) | (is_act ? A_BOLD : 0));
+        }
+
+        /* Show Desktop icon */
+        attron(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
+        mvprintw(dock_row, COLS - 5, "[#]");
+        attroff(COLOR_PAIR(C_TOP_LOGO) | A_BOLD);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOUSE POINTER
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_mouse_cursor(void)
+{
+    if (mouse_active && mouse_y >= 0 && mouse_y < ROWS && mouse_x >= 0 && mouse_x < COLS) {
+        attron(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
+        mvaddch(mouse_y, mouse_x, '^');
+        attroff(COLOR_PAIR(C_TOP_CLOCK) | A_BOLD);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WINDOWS & MODALS (Clean Solid Fill & Universal Borders)
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_window(int wid)
+{
+    WinState *w = &wins[wid];
+    if (!w->active) return;
+
+    int is_focused = (wid == focused_win);
+
+    /* Solid Fill Content Area First */
+    attron(COLOR_PAIR(C_WIN_BODY));
+    for (int r = w->y; r <= w->y + w->h && r < ROWS - 1; r++) {
+        move(r, w->x);
+        for (int c = 0; c < w->w && w->x + c < COLS - 1; c++) {
+            addch(' ');
+        }
+    }
+    attroff(COLOR_PAIR(C_WIN_BODY));
+
+    /* Title Bar */
+    attron(COLOR_PAIR(C_WIN_TITLE) | A_BOLD);
+    move(w->y, w->x);
+    for (int c = 0; c < w->w && w->x + c < COLS - 1; c++) addch(' ');
+    mvprintw(w->y, w->x + 1, "[X] Close  |  %-*s", w->w - 18, w->title);
+    attroff(COLOR_PAIR(C_WIN_TITLE) | A_BOLD);
+
+    /* Borders using clean standard characters */
+    int bp = is_focused ? C_WIN_BORDER : C_WIN_BODY;
+    attron(COLOR_PAIR(bp) | (is_focused ? A_BOLD : 0));
+    for (int r = w->y + 1; r < w->y + w->h && r < ROWS - 1; r++) {
+        mvaddch(r, w->x, '|');
+        if (w->x + w->w - 1 < COLS - 1)
+            mvaddch(r, w->x + w->w - 1, '|');
+    }
+    if (w->y + w->h < ROWS - 1) {
+        move(w->y + w->h, w->x);
+        addch('+');
+        for (int c = 1; c < w->w - 1 && w->x + c < COLS - 1; c++) addch('-');
+        if (w->x + w->w - 1 < COLS - 1) addch('+');
+    }
+    attroff(COLOR_PAIR(bp) | A_BOLD);
+
+    /* Content Text */
+    int ch = w->h - 2;
+    int cw = w->w - 2;
+
+    char *lines[256];
+    int nl = 0;
+    char buf[6144];
+    strncpy(buf, w->content, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    char *p = buf, *nl2;
+    while ((nl2 = strchr(p, '\n')) && nl < 255) {
+        *nl2 = 0; lines[nl++] = p; p = nl2 + 1;
+    }
+    if (*p) lines[nl++] = p;
+
+    attron(COLOR_PAIR(C_WIN_BODY));
+    for (int r = 0; r < ch && r + w->scroll < nl && w->y + 1 + r < ROWS - 1; r++) {
+        mvprintw(w->y + 1 + r, w->x + 2, "%-*.*s", cw - 2, cw - 2, lines[r + w->scroll]);
+    }
+    attroff(COLOR_PAIR(C_WIN_BODY));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OPTIONS DROPDOWN
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_options_menu(void)
+{
+    if (!options_open) return;
+    int top = 1, left = 5, width = 38;
+    for (int i = 0; i < NUM_OPTIONS; i++) {
+        int sel = (i == options_item);
+        attron(COLOR_PAIR(sel ? C_MENU_HIGH : C_MENU_DROP) | (sel ? A_BOLD : 0));
+        mvprintw(top + i, left, "  %-*s ", width - 4, options_list[i]);
+        attroff(COLOR_PAIR(sel ? C_MENU_HIGH : C_MENU_DROP) | A_BOLD);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FULL REDRAW
+   ═══════════════════════════════════════════════════════════════════ */
+static void draw_all(void)
+{
+    getmaxyx(stdscr, ROWS, COLS);
+    if (ROWS < 25) ROWS = 25;
+    if (COLS < 80) COLS = 80;
+    clear();
+    draw_wallpaper();
+    draw_icons();
+    draw_dock();
+    draw_topbar();
+    for (int i = 0; i < MAX_WINDOWS; i++) draw_window(i);
+    if (options_open) draw_options_menu();
+    draw_mouse_cursor();
+    refresh();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WINDOW CONTENT GENERATORS
+   ═══════════════════════════════════════════════════════════════════ */
 
 static void build_wifi(char *buf, int sz)
 {
     int connected = (wifi_ssid[0] != '\0');
-    const WifiNet *cur = NULL;
-    for (int i = 0; i < wifi_count; i++) {
-        if (strcmp(wifi_ssid, wifi_list[i].name) == 0) {
-            cur = &wifi_list[i];
-            break;
-        }
-    }
-
-    char cur_block[512];
-    if (connected && cur) {
-        snprintf(cur_block, sizeof(cur_block),
-            "  ((o)) %-24s [CONNECTED, SECURED]\n"
-            "        Signal: %d%% (%s)  |  Band: %s\n"
-            "        Speed : %s  |  Proto: %s\n"
-            "        IP    : %s\n",
-            cur->name,
-            cur->signal, cur->dbm, cur->band,
-            cur->rate, cur->proto,
-            cur->ip);
-    } else if (connected) {
-        snprintf(cur_block, sizeof(cur_block),
-            "  ((o)) %-24s [CONNECTED]\n"
-            "        Signal: 85%% (-56 dBm, Good)  |  Band: 5.0 GHz (Channel 48)\n"
-            "        Speed : 1201 Mbps Full Duplex  |  Proto: 802.11ax Wi-Fi 6\n"
-            "        IP    : 10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)\n",
-            wifi_ssid);
-    } else {
-        snprintf(cur_block, sizeof(cur_block),
-            "  ((o)) %-24s [DISCONNECTED, OFFLINE]\n"
-            "        Signal: 0%% (Radio Idle)  |  Band: None  |  Speed: 0 Mbps\n",
-            "No Network Connected");
-    }
-
-    char list_block[1536];
-    list_block[0] = '\0';
-    int offset = 0;
-    for (int i = 0; i < wifi_count && i < 6; i++) {
-        int is_conn = (strcmp(wifi_ssid, wifi_list[i].name) == 0);
-        char line[256];
-        snprintf(line, sizeof(line),
-            "  [%d] ((o)) %-16s %-11s %s %2d%% %-7s %s\n",
-            i + 1,
-            wifi_list[i].name,
-            is_conn ? "[Connected]" : "[In Range]",
-            wifi_list[i].bars,
-            wifi_list[i].signal,
-            wifi_list[i].bandShort,
-            wifi_list[i].status);
-        int len = strlen(line);
-        if (offset + len < (int)sizeof(list_block) - 1) {
-            strcat(list_block, line);
-            offset += len;
-        }
-    }
-
-    int max_key = (wifi_count > 6) ? 6 : wifi_count;
     snprintf(buf, sz,
-        "Quick Settings -- Wi-Fi & Available Networks\n"
-        "================================================================\n\n"
-        "Wi-Fi Radio: [%s]  |  Hardware Adapter: RTL8852BE WiFi 6\n"
-        "Interface  : wlan0 / e1000 (Bridged NAT to Host Network)\n\n"
+        "Wi-Fi Quick Settings & Wireless Networks\n"
+        "====================================================================\n\n"
+        "Wireless Radio : [%s]  |  Hardware: Realtek RTL8852BE WiFi 6\n"
+        "Interface Link : wlan0 / e1000 (Bridged NAT to Host Network)\n\n"
         "CURRENTLY CONNECTED NETWORK:\n"
-        "%s\n"
-        "AVAILABLE NETWORKS (%d in range):\n"
-        "%s\n"
-        "ACTIONS: Press [1-%d] Connect | [d] Disconnect | [r] Rescan | [Esc] Close\n",
-        connected ? "ENABLED" : "DISABLED",
-        cur_block,
-        wifi_count,
-        list_block,
-        max_key);
+        "  ((o)) %-28s [%s]\n"
+        "        Signal Strength: %s\n"
+        "        Radio Protocol : 802.11ax Wi-Fi 6  |  Band: 5.0 GHz (Channel 44)\n"
+        "        Connection Rate: %s\n"
+        "        IP Address     : %s\n"
+        "        Security Type  : WPA2-Enterprise / PEAP-MSCHAPv2\n\n"
+        "AVAILABLE NETWORKS (7 in range):\n"
+        "  [1] ((o)) Jain_Student      %s\n"
+        "  [2] ((o)) Jain_Faculty      %s\n"
+        "  [3] ((o)) Jain_Staff        %s\n"
+        "  [4] ((o)) eduroam           %s\n"
+        "  [5] ((o)) AndroidAP_5G      %s\n"
+        "  [6] ((o)) Campus_Guest      [Open]      [##..] 52%%  2.4 GHz  Portal\n"
+        "  [7] ((o)) Direct_Printer    [In Range]  [#...] 35%%  2.4 GHz  WPA2\n\n"
+        "ACTIONS: Press [1-7] Connect | [d] Disconnect | [r] Rescan | [Esc] Close\n",
+        connected ? "ACTIVE & ENABLED" : "RADIO IDLE",
+        connected ? wifi_ssid : "No Network Connected",
+        connected ? "CONNECTED, SECURED" : "DISCONNECTED",
+        connected ? "[==========] 95% (-42 dBm, Optimal)" : "[..........] 0% (Offline)",
+        connected ? "866.7 Mbps / 866.7 Mbps Full Duplex" : "0.0 Mbps",
+        connected ? "10.0.2.15 (Gateway: 10.0.2.2  DNS: 8.8.8.8)" : "0.0.0.0",
+        (strcmp(wifi_ssid, "Jain_Student") == 0) ? "[Connected] [####] 95%  5.0 GHz  Secured" : "[In Range]  [####] 95%  5.0 GHz  Secured",
+        (strcmp(wifi_ssid, "Jain_Faculty") == 0) ? "[Connected] [####] 90%  5.0 GHz  WPA2"    : "[In Range]  [####] 90%  5.0 GHz  WPA2",
+        (strcmp(wifi_ssid, "Jain_Staff") == 0)   ? "[Connected] [###.] 78%  2.4 GHz  WPA2"    : "[In Range]  [###.] 78%  2.4 GHz  WPA2",
+        (strcmp(wifi_ssid, "eduroam") == 0)      ? "[Connected] [###.] 72%  5.0 GHz  802.1X"  : "[In Range]  [###.] 72%  5.0 GHz  802.1X",
+        (strcmp(wifi_ssid, "AndroidAP_5G") == 0) ? "[Connected] [##..] 60%  5.0 GHz  WPA3"    : "[In Range]  [##..] 60%  5.0 GHz  WPA3");
 }
 
-static void build_filesystem(char *buf, int sz, const char *path, const char *name)
+static void build_sysmon(char *buf, int sz)
 {
-    char list[1024] = "";
+    snprintf(buf, sz,
+        "System Monitor & Performance Metrics\n"
+        "====================================================================\n\n"
+        "PROCESSOR UTILIZATION:\n"
+        "  CPU Model : 13th Gen Intel(R) Core(TM) i7-13650HX\n"
+        "  Frequency : 2.80 GHz base, 4.90 GHz Turbo Boost (20 Cores)\n"
+        "  Core Load : [||||||                      ] 18.4%% System Load\n\n"
+        "SYSTEM MEMORY (RAM):\n"
+        "  Total RAM : 7793 MB (8 GB Physical Allocation)\n"
+        "  Used RAM  : 673 MB (Lightweight Footprint)\n"
+        "  Free RAM  : 7120 MB (91.4%% Headroom Available)\n"
+        "  RAM Bar   : [||||                        ] 8.6%% In Use\n\n"
+        "STORAGE / SWAP:\n"
+        "  Live ISO  : 31.4 MB / 50.0 MB Hard Limit (62.9%% Budget Used [PASS])\n"
+        "  Swap RAM  : 2048 MB (0 MB In Use)\n\n"
+        "Press [Esc] or [Ctrl+W] to close window.\n");
+}
+
+static void build_microkernel(char *buf, int sz)
+{
+    snprintf(buf, sz,
+        "Microkernel Architecture & System Design\n"
+        "====================================================================\n\n"
+        "KERNEL SUBSYSTEM:\n"
+        "  Kernel Core    : Linux 7.0.0-43-generic (Modular Micro-Profile)\n"
+        "  Architecture   : x86_64 Long Mode (Intel VT-x & AMD-V Virtualized)\n"
+        "  Boot Time      : ~1.28 Seconds from GRUB to Interactive Shell\n"
+        "  Init System    : BusyBox init / Systemd compatible\n"
+        "  IPC Primitives : POSIX Mutexes, Semaphores & Condition Variables\n\n"
+        "SAFETY & ISOLATION:\n"
+        "  Memory Safety  : Hardware MMU Paging with NX Protection\n"
+        "  User Isolation : Multi-user UID privilege separation\n"
+        "  Driver Bounds  : Isolated AHCI, NVMe, USB, e1000, and wireless\n");
+}
+
+static void build_storage(char *buf, int sz)
+{
+    snprintf(buf, sz,
+        "Storage Explorer & Disk Controller Map\n"
+        "====================================================================\n\n"
+        "DETECTED CONTROLLERS & DRIVES:\n"
+        "  /dev/sda  - SATA Virtual Disk (AHCI Primary)  : 722 MB\n"
+        "  /dev/sdb  - Swap Storage Volume              : 97 MB\n"
+        "  /dev/sdc  - Persistent Debian Root Volume    : 2048 MB (2 GB)\n"
+        "  /dev/sdd  - Secondary NVMe Mass Storage      : 1024 GB (1 TB)\n\n"
+        "FILESYSTEM MOUNT MAP:\n"
+        "  /         - rootfs (tmpfs RAM overlay, Read-Write)\n"
+        "  /proc     - procfs virtual process filesystem\n"
+        "  /sys      - sysfs kernel device tree\n"
+        "  /dev      - devtmpfs device node tree\n");
+}
+
+static void build_settings(char *buf, int sz)
+{
+    snprintf(buf, sz,
+        "Settings & Control Panel\n"
+        "====================================================================\n\n"
+        "CONFIGURATION MODULES:\n"
+        "  [1] Personalization : Deep Midnight & Glowing Magenta Theme\n"
+        "  [2] Network & Wi-Fi : RTL8852BE WiFi 6 Controller Active\n"
+        "  [3] Sound & Audio   : AC97 / Intel HD Audio at 100%%\n"
+        "  [4] Workspaces      : 4 Virtual Desktops Enabled\n"
+        "  [5] Software Stores : Snap Store & Debian APT Package Centers\n\n"
+        "USER PROFILE:\n"
+        "  Username  : srivas / user (Administrator Rights)\n"
+        "  Hostname  : microos\n");
+}
+
+static void build_browser(char *buf, int sz)
+{
+    snprintf(buf, sz,
+        "Web Browser (HTML5 & Fast Text Mode)\n"
+        "====================================================================\n\n"
+        "CURRENT URL: https://duckduckgo.com\n\n"
+        "Welcome to the MicroOS Web Portal!\n\n"
+        "Quick Bookmarks:\n"
+        "  [1] Debian Package Archives  : https://packages.debian.org\n"
+        "  [2] Ubuntu Snapcraft Store   : https://snapcraft.io\n"
+        "  [3] GitHub Open Source Hub   : https://github.com\n"
+        "  [4] Wikipedia Encyclopedia   : https://en.wikipedia.org\n\n"
+        "To start full terminal web browsing:\n"
+        "  Open Terminal and run: curl -sL <url> | less\n"
+        "  Or install links/w3m using: snap install links\n");
+}
+
+static void build_files(char *buf, int sz, const char *path, const char *title)
+{
+    snprintf(buf, sz, "%s (%s)\n====================================================================\n\n", title, path);
     DIR *d = opendir(path);
     if (d) {
-        struct dirent *dir;
+        struct dirent *de;
         int count = 0;
-        while ((dir = readdir(d)) != NULL && count < 10) {
-            if (dir->d_name[0] == '.') continue;
-            char item[128];
-            snprintf(item, sizeof(item), "  [ITEM] %-18s (Ready)\n", dir->d_name);
-            strcat(list, item);
-            count++;
+        while ((de = readdir(d)) != NULL && count < 20) {
+            if (de->d_name[0] == '.') continue;
+            struct stat st;
+            char full[512];
+            snprintf(full, sizeof(full), "%s/%s", path, de->d_name);
+            if (stat(full, &st) == 0) {
+                snprintf(buf + strlen(buf), sz - strlen(buf),
+                    "  %-6s  %-24s  %8ld bytes\n",
+                    S_ISDIR(st.st_mode) ? "[DIR]" : "[FILE]",
+                    de->d_name, (long)st.st_size);
+                count++;
+            }
         }
         closedir(d);
     } else {
-        strcpy(list, "  [INFO] Standard system root volume mounted (Read-Write)\n");
+        strncat(buf, "  Directory unavailable.\n", sz - strlen(buf) - 1);
     }
-
-    snprintf(buf, sz,
-        "%s Explorer & Directory Contents\n"
-        "================================================================\n\n"
-        "Directory Path : %s\n"
-        "Mount Type     : ext4 / tmpfs RAM overlay\n\n"
-        "DIRECTORY ITEMS:\n"
-        "%s\n"
-        "Press [Esc] to return to Desktop.\n",
-        name, path, list);
 }
 
-/* ─── Window Actions ──────────────────────────────────────────────── */
+static void build_about(char *buf, int sz)
+{
+    snprintf(buf, sz,
+        "About MicroOS\n"
+        "====================================================================\n\n"
+        "  __  __ _               ___  ___\n"
+        " |  \\/  (_) ___ _ __ ___/ _ \\/ __|\n"
+        " | |\\/| | |/ __| '__/ _ \\ | | \\__ \\\n"
+        " |_|  |_|_|\\___/_|  \\___/\\___/|___/\n\n"
+        "Edition      : MicroOS Desktop Modern Edition v5.2\n"
+        "Architecture : x86_64 Dual Hybrid (BIOS & UEFI Bootable)\n"
+        "Kernel       : Linux 7.0.0-43-generic\n"
+        "Live ISO Size: 31.45 MB (< 50 MB budget)\n"
+        "Lead Author  : M. Srivas [25BTRCL143] - Department: AIML\n\n"
+        "Integrated Software:\n"
+        "  - POSIX Producer-Consumer Synchronization Simulator\n"
+        "  - Classic Retro Arcade Games (Snake, Tetris, Pong, 2048, Mines)\n"
+        "  - Ubuntu Snap Store & Debian APT Package Center\n"
+        "  - Windows 11 Wi-Fi Network Quick Settings Flyout\n");
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WINDOW MANAGEMENT
+   ═══════════════════════════════════════════════════════════════════ */
 static void open_window(int type)
 {
-    /* If already open, focus it */
-    for (int w = 0; w < MAX_WINDOWS; w++) {
-        if (wins[w].active && wins[w].type == type) {
-            focused_win = w;
-            need_redraw = 1;
-            return;
-        }
-    }
-
     int slot = -1;
-    for (int w = 0; w < MAX_WINDOWS; w++) {
+    for (int w = 0; w < MAX_WINDOWS; w++)
         if (!wins[w].active) { slot = w; break; }
-    }
-    if (slot < 0) slot = 0;
+    if (slot < 0) return;
 
     WinState *w = &wins[slot];
     memset(w, 0, sizeof(*w));
     w->active = 1;
     w->type = type;
+    w->h = ROWS - 4;
+    w->w = COLS - 4;
+    w->y = 2;
+    w->x = 2;
     w->scroll = 0;
 
-    /* Window geometry positioned neatly on the right, icons stay visible on left */
-    w->x = 30;
-    w->y = 2;
-    w->w = 48;
-    w->h = 20;
-
     switch (type) {
-        case APP_DASHBOARD:
-            strncpy(w->title, "MicroOS Dashboard", sizeof(w->title)-1);
-            build_dashboard(w->content, sizeof(w->content));
-            break;
         case APP_WIFI:
-            strncpy(w->title, "WiFi & Network Settings", sizeof(w->title)-1);
-            sync_wifi_from_host();
+            strncpy(w->title, "Wi-Fi Quick Settings", sizeof(w->title)-1);
             build_wifi(w->content, sizeof(w->content));
+            break;
+        case APP_SYSMON:
+            strncpy(w->title, "System Monitor", sizeof(w->title)-1);
+            build_sysmon(w->content, sizeof(w->content));
+            break;
+        case APP_MICROKERNEL:
+            strncpy(w->title, "Microkernel Architecture", sizeof(w->title)-1);
+            build_microkernel(w->content, sizeof(w->content));
+            break;
+        case APP_STORAGE:
+            strncpy(w->title, "Storage Explorer", sizeof(w->title)-1);
+            build_storage(w->content, sizeof(w->content));
+            break;
+        case APP_SETTINGS:
+            strncpy(w->title, "Settings", sizeof(w->title)-1);
+            build_settings(w->content, sizeof(w->content));
+            break;
+        case APP_BROWSER:
+            strncpy(w->title, "Web Browser", sizeof(w->title)-1);
+            build_browser(w->content, sizeof(w->content));
             break;
         case APP_FILESYSTEM:
             strncpy(w->title, "File System (/)", sizeof(w->title)-1);
-            build_filesystem(w->content, sizeof(w->content), "/", "File System");
-            break;
-        case APP_FILE_MANAGER:
-            strncpy(w->title, "File Manager", sizeof(w->title)-1);
-            build_filesystem(w->content, sizeof(w->content), "/root", "User Files");
+            build_files(w->content, sizeof(w->content), "/", "Root File System");
             break;
         case APP_HOME:
-            strncpy(w->title, "Home Directory", sizeof(w->title)-1);
-            build_filesystem(w->content, sizeof(w->content), "/root", "Home Directory");
+        case APP_FILES:
+            strncpy(w->title, "Files (/home/srivas)", sizeof(w->title)-1);
+            build_files(w->content, sizeof(w->content), "/home/srivas", "User Files");
+            break;
+        case APP_OPTIONS:
+            strncpy(w->title, "About MicroOS", sizeof(w->title)-1);
+            build_about(w->content, sizeof(w->content));
             break;
         default:
-            strncpy(w->title, "MicroOS Window", sizeof(w->title)-1);
-            snprintf(w->content, sizeof(w->content), "Application active.\nPress [Esc] to close.\n");
+            strncpy(w->title, "Application Window", sizeof(w->title)-1);
+            snprintf(w->content, sizeof(w->content), "Application loaded.\n");
             break;
     }
     focused_win = slot;
@@ -574,377 +861,282 @@ static void open_window(int type)
 
 static void close_focused_window(void)
 {
-    if (focused_win >= 0) {
-        wins[focused_win].active = 0;
-        focused_win = -1;
-        for (int w = MAX_WINDOWS - 1; w >= 0; w--) {
-            if (wins[w].active) { focused_win = w; break; }
-        }
-    }
+    if (focused_win < 0) return;
+    wins[focused_win].active = 0;
+    focused_win = -1;
+    for (int w = MAX_WINDOWS - 1; w >= 0; w--)
+        if (wins[w].active) { focused_win = w; break; }
 }
 
-static void launch_app(const char *cmd)
+/* ═══════════════════════════════════════════════════════════════════
+   APP LAUNCHER (Safe Process Execution with ncurses def_prog_mode)
+   ═══════════════════════════════════════════════════════════════════ */
+static void launch_app(const char *cmd, const char *name)
 {
-    if (!cmd) return;
+    def_prog_mode();
     endwin();
-    system(cmd);
-    initscr();
-    raw();
-    noecho();
-    keypad(stdscr, TRUE);
+    printf("\033[H\033[2J");
+    printf("\033[1;35m[MicroOS App Launcher]\033[0m Starting %s...\n\n", name);
+    int ret = system(cmd);
+    (void)ret;
+    printf("\n\033[1;33mApplication finished.\033[0m Press [Enter] to return to Desktop...");
+    fflush(stdout);
+
+    /* Drain input so Enter does not re-trigger desktop selection */
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != '\r' && ch != EOF);
+
+    reset_prog_mode();
     curs_set(0);
-    init_colors();
+    clearok(stdscr, TRUE);
     need_redraw = 1;
 }
 
-/* ─── Rendering Engine ────────────────────────────────────────────── */
-
-static void draw_desktop_icons(void)
+static void launch_terminal(void)
 {
-    /* Coordinates for 2 columns */
-    const int col_x[2] = { 2, 16 };
-    const int row_y[6] = { 1, 4, 7, 10, 13, 16 };
+    def_prog_mode();
+    endwin();
+    int ret = system("/usr/bin/terminal");
+    (void)ret;
 
-    for (int i = 0; i < TOTAL_ICONS; i++) {
-        const DesktopIcon *ic = &ICONS[i];
-        int x = col_x[ic->col];
-        int y = row_y[ic->row];
-        int is_sel = (i == selected_icon);
-
-        /* Icon Badge */
-        attron(COLOR_PAIR(ic->badge_pair) | A_BOLD);
-        mvprintw(y, x, "%s", ic->badge);
-        attroff(COLOR_PAIR(ic->badge_pair) | A_BOLD);
-
-        /* Label */
-        if (is_sel) attron(COLOR_PAIR(C_ICON_SEL) | A_BOLD);
-        else        attron(COLOR_PAIR(C_ICON_TITLE));
-        mvprintw(y + 1, x, "%-14.14s", ic->label);
-        if (is_sel) attroff(COLOR_PAIR(C_ICON_SEL) | A_BOLD);
-        else        attroff(COLOR_PAIR(C_ICON_TITLE));
-    }
-}
-
-static void draw_window(int slot)
-{
-    WinState *w = &wins[slot];
-    if (!w->active) return;
-
-    /* Window Body Fill (solid white) */
-    attron(COLOR_PAIR(C_WIN_BODY));
-    for (int r = w->y; r < w->y + w->h && r < ROWS - 1; r++) {
-        move(r, w->x);
-        for (int c = 0; c < w->w && w->x + c < COLS; c++) addch(' ');
-    }
-    attroff(COLOR_PAIR(C_WIN_BODY));
-
-    /* Window Title Bar */
-    attron(COLOR_PAIR(C_WIN_TITLE) | A_BOLD);
-    move(w->y, w->x);
-    for (int c = 0; c < w->w && w->x + c < COLS; c++) addch(' ');
-    mvprintw(w->y, w->x + 1, "%-*.*s", w->w - 12, w->w - 12, w->title);
-    mvprintw(w->y, w->x + w->w - 9, "[-] [ ]");
-    attroff(COLOR_PAIR(C_WIN_TITLE) | A_BOLD);
-
-    /* Red [X] Close button */
-    attron(COLOR_PAIR(C_WIN_CLOSE) | A_BOLD);
-    mvprintw(w->y, w->x + w->w - 3, "[X]");
-    attroff(COLOR_PAIR(C_WIN_CLOSE) | A_BOLD);
-
-    /* Content Lines */
-    char buf[4096];
-    strncpy(buf, w->content, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';
-
-    char *lines[64];
-    int nl = 0;
-    char *p = buf, *nl2;
-    while ((nl2 = strchr(p, '\n')) && nl < 60) {
-        *nl2 = '\0';
-        lines[nl++] = p;
-        p = nl2 + 1;
-    }
-    if (*p) lines[nl++] = p;
-
-    attron(COLOR_PAIR(C_WIN_BODY));
-    int max_rows = w->h - 2;
-    int max_cols = w->w - 2;
-    for (int r = 0; r < max_rows && r + w->scroll < nl && w->y + 1 + r < ROWS - 1; r++) {
-        const char *line = lines[r + w->scroll];
-        if (strstr(line, "INFORMATION") || strstr(line, "PROCESS NAME") || strstr(line, "AVAILABLE")) {
-            attron(COLOR_PAIR(C_WIN_HEADER) | A_BOLD);
-            mvprintw(w->y + 1 + r, w->x + 1, "%-*.*s", max_cols, max_cols, line);
-            attroff(COLOR_PAIR(C_WIN_HEADER) | A_BOLD);
-            attron(COLOR_PAIR(C_WIN_BODY));
-        } else {
-            mvprintw(w->y + 1 + r, w->x + 1, "%-*.*s", max_cols, max_cols, line);
-        }
-    }
-    attroff(COLOR_PAIR(C_WIN_BODY));
-}
-
-static void draw_taskbar(void)
-{
-    int dock_row = ROWS - 1;
-
-    /* Fill taskbar (light gray) */
-    attron(COLOR_PAIR(C_TASKBAR));
-    move(dock_row, 0);
-    for (int c = 0; c < COLS; c++) addch(' ');
-
-    /* Start Button */
-    attron(COLOR_PAIR(C_START_BTN) | A_BOLD);
-    mvprintw(dock_row, 0, " [ Start ] ");
-    attroff(COLOR_PAIR(C_START_BTN) | A_BOLD);
-
-    /* Active Window Tab */
-    if (focused_win >= 0 && wins[focused_win].active) {
-        attron(COLOR_PAIR(C_TASK_TAB) | A_BOLD);
-        char tab[24];
-        snprintf(tab, sizeof(tab), " [ %-14.14s ] ", wins[focused_win].title);
-        mvprintw(dock_row, 12, "%s", tab);
-        attroff(COLOR_PAIR(C_TASK_TAB) | A_BOLD);
-    }
-
-    /* System Tray (Wi-Fi + Clock in 12-hour format) */
-    char tray[32];
-    time_t t = time(NULL);
-    struct tm *tm = localtime(&t);
-    char timebuf[16];
-    strftime(timebuf, sizeof(timebuf), "%I:%M %p", tm);
-    snprintf(tray, sizeof(tray), "|ll  %s ", timebuf);
-
-    attron(COLOR_PAIR(C_TRAY) | A_BOLD);
-    mvprintw(dock_row, COLS - (int)strlen(tray), "%s", tray);
-    attroff(COLOR_PAIR(C_TRAY) | A_BOLD);
-}
-
-static void draw_start_menu(void)
-{
-    if (!start_menu_open) return;
-
-    static const char *items[] = {
-        "MicroOS Dashboard",
-        "WiFi & Network Settings",
-        "File Manager",
-        "Terminal (Bash)",
-        "Snake Arcade Game",
-        "Restart System",
-        "Shut Down Computer"
-    };
-    int count = 7;
-    int w = 26;
-    int h = count + 2;
-    int x = 0;
-    int y = ROWS - 1 - h;
-
-    attron(COLOR_PAIR(C_MENU_BG));
-    for (int r = y; r < y + h; r++) {
-        move(r, x);
-        for (int c = 0; c < w; c++) addch(' ');
-    }
-    mvprintw(y, x + 1, "=== MicroOS Menu ===");
-    for (int i = 0; i < count; i++) {
-        if (i == start_menu_item) {
-            attron(COLOR_PAIR(C_MENU_SEL) | A_BOLD);
-            mvprintw(y + 1 + i, x, "  %-*.*s", w - 2, w - 2, items[i]);
-            attroff(COLOR_PAIR(C_MENU_SEL) | A_BOLD);
-            attron(COLOR_PAIR(C_MENU_BG));
-        } else {
-            mvprintw(y + 1 + i, x, "  %-*.*s", w - 2, w - 2, items[i]);
-        }
-    }
-    attroff(COLOR_PAIR(C_MENU_BG));
-}
-
-static void draw_all(void)
-{
-    /* Clear desktop with dark slate color */
-    attron(COLOR_PAIR(C_DESKTOP));
-    for (int r = 0; r < ROWS - 1; r++) {
-        move(r, 0);
-        for (int c = 0; c < COLS; c++) addch(' ');
-    }
-    attroff(COLOR_PAIR(C_DESKTOP));
-
-    draw_desktop_icons();
-
-    /* Draw any active windows */
-    for (int w = 0; w < MAX_WINDOWS; w++) {
-        if (wins[w].active) draw_window(w);
-    }
-
-    draw_taskbar();
-    if (start_menu_open) draw_start_menu();
-
-    refresh();
-}
-
-/* ─── Input Handling ──────────────────────────────────────────────── */
-
-static void handle_input(int ch)
-{
-    /* Start menu active */
-    if (start_menu_open) {
-        switch (ch) {
-            case KEY_UP:
-                start_menu_item = (start_menu_item - 1 + 7) % 7;
-                break;
-            case KEY_DOWN:
-                start_menu_item = (start_menu_item + 1) % 7;
-                break;
-            case '\n': case '\r': case KEY_ENTER:
-                start_menu_open = 0;
-                switch (start_menu_item) {
-                    case 0: open_window(APP_DASHBOARD); break;
-                    case 1: open_window(APP_WIFI); break;
-                    case 2: open_window(APP_FILE_MANAGER); break;
-                    case 3: launch_app("/usr/bin/terminal"); break;
-                    case 4: launch_app("/usr/games/snake"); break;
-                    case 5: endwin(); system("reboot"); break;
-                    case 6: endwin(); system("poweroff"); break;
-                }
-                break;
-            case 27: case 'q': case 'Q':
-                start_menu_open = 0;
-                break;
-        }
-        need_redraw = 1;
-        return;
-    }
-
-    /* Window active */
-    if (focused_win >= 0 && wins[focused_win].active) {
-        if (ch == 27) { /* Esc: close window */
-            close_focused_window();
-            need_redraw = 1;
-            return;
-        }
-        if (ch == KEY_UP || ch == KEY_PPAGE) {
-            wins[focused_win].scroll = (wins[focused_win].scroll > 1) ? wins[focused_win].scroll - 1 : 0;
-            need_redraw = 1;
-            return;
-        }
-        if (ch == KEY_DOWN || ch == KEY_NPAGE) {
-            wins[focused_win].scroll += 1;
-            need_redraw = 1;
-            return;
-        }
-
-        /* Wi-Fi specific keys */
-        if (wins[focused_win].type == APP_WIFI) {
-            if (ch >= '1' && ch <= '6' && ch <= '0' + wifi_count) {
-                strncpy(wifi_ssid, wifi_list[ch - '1'].name, sizeof(wifi_ssid) - 1);
-                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
-                FILE *wf = fopen("/run/wifi.state", "w");
-                if (wf) { fputs(wifi_ssid, wf); fclose(wf); }
-                need_redraw = 1;
-                return;
-            }
-            if (ch == 'd' || ch == 'D') {
-                wifi_ssid[0] = '\0';
-                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
-                FILE *wf = fopen("/run/wifi.state", "w");
-                if (wf) { fputs("", wf); fclose(wf); }
-                need_redraw = 1;
-                return;
-            }
-            if (ch == 'r' || ch == 'R') {
-                sync_wifi_from_host();
-                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
-                need_redraw = 1;
-                return;
-            }
-        }
-    }
-
-    /* Desktop Icon Navigation & Global Keys */
-    switch (ch) {
-        case KEY_UP:
-            if (selected_icon > 0) selected_icon--;
-            break;
-        case KEY_DOWN:
-            if (selected_icon < TOTAL_ICONS - 1) selected_icon++;
-            break;
-        case KEY_LEFT:
-            if (selected_icon >= 6) selected_icon -= 6;
-            break;
-        case KEY_RIGHT:
-            if (selected_icon < 4) selected_icon += 6;
-            break;
-        case '\n': case '\r': case KEY_ENTER:
-            if (ICONS[selected_icon].cmd) {
-                launch_app(ICONS[selected_icon].cmd);
-            } else {
-                open_window(ICONS[selected_icon].app_type);
-            }
-            break;
-        case 's': case 'S':
-            start_menu_open = !start_menu_open;
-            start_menu_item = 0;
-            break;
-        case 'w': case 'W':
-            open_window(APP_WIFI);
-            break;
-        case 'd': case 'D':
-            open_window(APP_DASHBOARD);
-            break;
-        case 't': case 'T':
-            launch_app("/usr/bin/terminal");
-            break;
-        case 'k': case 'K':
-            launch_app("/usr/games/snake");
-            break;
-        case 'p': case 'P':
-            launch_app("/usr/bin/producer-consumer");
-            break;
-        case 'b': case 'B':
-            launch_app("/usr/bin/boot-benchmark");
-            break;
-        case 'q': case 'Q':
-            if (focused_win >= 0) close_focused_window();
-            break;
-    }
+    reset_prog_mode();
+    curs_set(0);
+    clearok(stdscr, TRUE);
     need_redraw = 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INPUT HANDLING
+   ═══════════════════════════════════════════════════════════════════ */
+static void activate_icon(int idx)
+{
+    int app = APPS[idx].app_id;
+    if (app == APP_DEV) {
+        launch_terminal();
+    } else if (app == APP_SNAPSTORE) {
+        launch_app("/usr/bin/snap-store", "Snap Store");
+    } else if (app == APP_APT) {
+        launch_app("/usr/bin/apt status", "APT Package Manager");
+    } else if (app == APP_HARDWARE) {
+        launch_app("/usr/bin/dashboard", "Hardware Dashboard");
+    } else if (app == APP_PRODUCER) {
+        launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulator");
+    } else if (app == APP_BENCHMARK) {
+        launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+    } else if (app == APP_SNAKE) {
+        launch_app("/usr/games/snake", "Snake Game");
+    } else if (app == APP_ARCADE) {
+        launch_app("/usr/games/arcade", "Retro Arcade Hub");
+    } else if (app == APP_TETRIS) {
+        launch_app("/usr/games/tetris", "Tetris Arcade");
+    } else if (app == APP_2048) {
+        launch_app("/usr/games/2048", "2048 Puzzle");
+    } else if (app == APP_PONG) {
+        launch_app("/usr/games/pong", "Pong Arcade");
+    } else if (app == APP_MINES) {
+        launch_app("/usr/games/mines", "Minesweeper");
+    } else if (app == APP_NETWORK) {
+        open_window(APP_WIFI);
+    } else {
+        open_window(app);
+    }
 }
 
 static void handle_mouse(MEVENT *ev)
 {
-    /* Start Button click */
-    if (ev->y == ROWS - 1 && ev->x >= 0 && ev->x <= 11) {
-        start_menu_open = !start_menu_open;
-        start_menu_item = 0;
-        need_redraw = 1;
-        return;
-    }
+    mouse_active = 1;
+    mouse_x = ev->x;
+    mouse_y = ev->y;
 
-    /* Window close [X] button click */
-    if (focused_win >= 0 && wins[focused_win].active) {
-        WinState *w = &wins[focused_win];
-        if (ev->y == w->y && ev->x >= w->x + w->w - 4 && ev->x <= w->x + w->w) {
-            close_focused_window();
-            need_redraw = 1;
+    /* Top bar clicks */
+    if (ev->y == 0) {
+        if (ev->x >= 1 && ev->x <= 14) {
+            options_open = !options_open;
+            options_item = 0;
+            return;
+        }
+        if (ev->x >= COLS - 4) {
+            endwin();
+            if (system("poweroff") != 0) system("reboot");
             return;
         }
     }
 
-    /* Desktop icon clicks */
-    const int col_x[2] = { 2, 16 };
-    const int row_y[6] = { 1, 4, 7, 10, 13, 16 };
-    for (int i = 0; i < TOTAL_ICONS; i++) {
-        int x = col_x[ICONS[i].col];
-        int y = row_y[ICONS[i].row];
-        if (ev->x >= x && ev->x <= x + 14 && ev->y >= y && ev->y <= y + 1) {
+    /* Options dropdown */
+    if (options_open && ev->y >= 1 && ev->y <= NUM_OPTIONS && ev->x >= 5 && ev->x <= 44) {
+        int item = ev->y - 1;
+        options_open = 0;
+        if (item == 0) open_window(APP_OPTIONS);
+        else if (item == 1) launch_app("/usr/games/arcade", "Retro Arcade Hub");
+        else if (item == 2) launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulation");
+        else if (item == 3) launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+        else if (item == 4) open_window(APP_WIFI);
+        else if (item == 5) launch_terminal();
+        else if (item == 6) { endwin(); refresh(); }
+        else if (item == 7) { endwin(); if (system("poweroff") != 0) system("reboot"); }
+        return;
+    }
+
+    /* Bottom dock */
+    if (ev->y == ROWS - 1) {
+        if (ev->x >= 1 && ev->x <= 4)   { options_open = !options_open; options_item = 0; return; }
+        if (ev->x >= 5 && ev->x <= 8)   { open_window(APP_OPTIONS); return; }
+        if (ev->x >= 9 && ev->x <= 12)  { open_window(APP_FILES); return; }
+        if (ev->x >= 13 && ev->x <= 16) { launch_terminal(); return; }
+        if (ev->x >= 17 && ev->x <= 20) { launch_app("/usr/games/arcade", "Retro Arcade Hub"); return; }
+        if (ev->x >= 21 && ev->x <= 24) { open_window(APP_BROWSER); return; }
+        if (ev->x >= 25 && ev->x <= 28) { open_window(APP_SYSMON); return; }
+        if (ev->x >= 29 && ev->x <= 32) { open_window(APP_SETTINGS); return; }
+
+        /* Workspace pills */
+        if (ev->x >= COLS - 38 && ev->x < COLS - 24) { current_workspace = 1; return; }
+        if (ev->x >= COLS - 24 && ev->x < COLS - 19) { current_workspace = 2; return; }
+        if (ev->x >= COLS - 19 && ev->x < COLS - 14) { current_workspace = 3; return; }
+        if (ev->x >= COLS - 14 && ev->x < COLS - 9)  { current_workspace = 4; return; }
+    }
+
+    /* Window close button [X] Close click */
+    if (focused_win >= 0 && wins[focused_win].active) {
+        WinState *w = &wins[focused_win];
+        if (ev->y == w->y && ev->x >= w->x + 1 && ev->x <= w->x + 11) {
+            close_focused_window();
+            return;
+        }
+    }
+
+    /* Icon clicks */
+    for (int i = 0; i < TOTAL_APPS; i++) {
+        int r, c;
+        get_icon_coords(i, &r, &c);
+        if (ev->y == r && ev->x >= c && ev->x <= c + 24) {
             selected_icon = i;
-            if (ICONS[i].cmd) launch_app(ICONS[i].cmd);
-            else open_window(ICONS[i].app_type);
-            need_redraw = 1;
+            activate_icon(i);
             return;
         }
     }
 }
 
-/* ─── Entry Point ─────────────────────────────────────────────────── */
+static void handle_input(int ch)
+{
+    if (ch == KEY_MOUSE) {
+        MEVENT ev;
+        if (getmouse(&ev) == OK) {
+            handle_mouse(&ev);
+            need_redraw = 1;
+            return;
+        }
+    }
+
+    if (options_open) {
+        switch (ch) {
+            case KEY_UP:   options_item = (options_item - 1 + NUM_OPTIONS) % NUM_OPTIONS; break;
+            case KEY_DOWN: options_item = (options_item + 1) % NUM_OPTIONS; break;
+            case '\n': case '\r': case KEY_ENTER:
+                options_open = 0;
+                if (options_item == 0) open_window(APP_OPTIONS);
+                else if (options_item == 1) launch_app("/usr/games/arcade", "Retro Arcade Hub");
+                else if (options_item == 2) launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulation");
+                else if (options_item == 3) launch_app("/usr/bin/boot-benchmark", "Boot Benchmark");
+                else if (options_item == 4) open_window(APP_WIFI);
+                else if (options_item == 5) launch_terminal();
+                else if (options_item == 7) { endwin(); if (system("poweroff") != 0) system("reboot"); }
+                break;
+            case 27: case 'q': case 'Q':
+                options_open = 0;
+                break;
+        }
+        need_redraw = 1;
+        return;
+    }
+
+    /* Window scrolling and interactive keys */
+    if (focused_win >= 0 && wins[focused_win].active) {
+        if (ch == KEY_PPAGE)
+            wins[focused_win].scroll = (wins[focused_win].scroll > 3) ? wins[focused_win].scroll - 3 : 0;
+        else if (ch == KEY_NPAGE)
+            wins[focused_win].scroll += 3;
+        else if (wins[focused_win].type == APP_WIFI) {
+            static const char *net_names[] = {
+                "Jain_Student", "Jain_Faculty", "Jain_Staff",
+                "eduroam", "AndroidAP_5G", "Campus_Guest", "Direct_Printer"
+            };
+            if (ch >= '1' && ch <= '7') {
+                strncpy(wifi_ssid, net_names[ch - '1'], sizeof(wifi_ssid) - 1);
+                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                need_redraw = 1;
+                return;
+            } else if (ch == 'c' || ch == 'C') {
+                strncpy(wifi_ssid, "Jain_Student", sizeof(wifi_ssid) - 1);
+                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                need_redraw = 1;
+                return;
+            } else if (ch == 'd' || ch == 'D') {
+                wifi_ssid[0] = '\0';
+                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                need_redraw = 1;
+                return;
+            } else if (ch == 'r' || ch == 'R') {
+                build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
+                need_redraw = 1;
+                return;
+            }
+        }
+    }
+
+    switch (ch) {
+        case 17: /* Ctrl+Q */
+            running = 0;
+            break;
+
+        /* Workspace switching */
+        case '1': current_workspace = 1; break;
+        case '2': current_workspace = 2; break;
+        case '3': current_workspace = 3; break;
+        case '4': current_workspace = 4; break;
+
+        /* Icon Navigation */
+        case KEY_UP:   selected_icon = (selected_icon - 1 + TOTAL_APPS) % TOTAL_APPS; break;
+        case KEY_DOWN: selected_icon = (selected_icon + 1) % TOTAL_APPS; break;
+        case KEY_LEFT: case KEY_RIGHT:
+            if (selected_icon < 11) {
+                int n = selected_icon + 11;
+                if (n < TOTAL_APPS) selected_icon = n;
+            } else {
+                selected_icon -= 11;
+            }
+            break;
+
+        /* Open selected app */
+        case '\n': case '\r': case KEY_ENTER: case ' ':
+            activate_icon(selected_icon);
+            break;
+
+        /* Close window */
+        case 23: /* Ctrl+W */
+        case 27: /* Esc */
+            close_focused_window();
+            break;
+
+        /* Fast Shortcuts */
+        case 'g': case 'G': launch_app("/usr/games/arcade", "Retro Arcade Hub"); break;
+        case 'k': case 'K': launch_app("/usr/games/snake", "Snake Game"); break;
+        case 'p': case 'P': launch_app("/usr/bin/producer-consumer", "Producer-Consumer Simulator"); break;
+        case 'w': case 'W': open_window(APP_WIFI); break;
+        case 's': case 'S': launch_app("/usr/bin/snap-store", "Snap Store"); break;
+        case 't': case 'T': launch_terminal(); break;
+        case 'b': case 'B': open_window(APP_BROWSER); break;
+        case 'm': case 'M': open_window(APP_SYSMON); break;
+        case 'o': case 'O': options_open = !options_open; options_item = 0; break;
+        case 'a': case 'A': open_window(APP_OPTIONS); break;
+
+        default: break;
+    }
+    need_redraw = 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN
+   ═══════════════════════════════════════════════════════════════════ */
 int main(void)
 {
     setlocale(LC_ALL, "");
@@ -959,57 +1151,42 @@ int main(void)
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-    timeout(500); /* 500 ms non-blocking wait for clock ticks */
-    mousemask(BUTTON1_CLICKED | BUTTON1_PRESSED, NULL);
+    timeout(1000);
+    scrollok(stdscr, FALSE);
 
+    if (!has_colors()) {
+        endwin();
+        fprintf(stderr, "MicroOS Desktop requires a color terminal.\n");
+        return 1;
+    }
     init_colors();
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 
-    /* Load initial Wi-Fi SSID if present */
     FILE *wf = fopen("/run/wifi.state", "r");
     if (!wf) wf = fopen("/etc/wifi_ssid", "r");
     if (wf) {
-        char line[64];
-        if (fgets(line, sizeof(line), wf)) {
-            int l = strlen(line);
-            while (l > 0 && (line[l-1] == '\n' || line[l-1] == '\r' || line[l-1] == ' '))
-                line[--l] = '\0';
-            if (line[0] != '\0') strncpy(wifi_ssid, line, sizeof(wifi_ssid) - 1);
+        if (fgets(wifi_ssid, sizeof(wifi_ssid), wf)) {
+            char *nl = strchr(wifi_ssid, '\n');
+            if (nl) *nl = '\0';
         }
         fclose(wf);
     }
 
-    /* Sync initial host Wi-Fi */
-    sync_wifi_from_host();
-
-    /* Open MicroOS Dashboard window on boot, matching the target screenshot */
-    open_window(APP_DASHBOARD);
-
-    int tick = 0;
     while (running) {
         if (need_redraw) {
             draw_all();
             need_redraw = 0;
         }
-
         int ch = getch();
-        if (ch == KEY_MOUSE) {
-            MEVENT ev;
-            if (getmouse(&ev) == OK) handle_mouse(&ev);
-        } else if (ch != ERR) {
-            handle_input(ch);
+        if (ch == ERR) {
+            need_redraw = 1; /* Clock tick update */
         } else {
-            /* Clock & Wi-Fi background tick every 5 seconds */
-            if (++tick >= 10) {
-                tick = 0;
-                sync_wifi_from_host();
-                if (focused_win >= 0 && wins[focused_win].active && wins[focused_win].type == APP_WIFI) {
-                    build_wifi(wins[focused_win].content, sizeof(wins[focused_win].content));
-                }
-                need_redraw = 1;
-            }
+            handle_input(ch);
         }
     }
 
     endwin();
+    printf("\033[H\033[2J");
+    printf("Returned to MicroOS terminal shell.\nType 'desktop' to restart GUI.\n\n");
     return 0;
 }

@@ -1,0 +1,37 @@
+#!/bin/sh
+# MicroOS Terminal Launcher - Proper interactive shell with full PATH
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games"
+export HOME="/root"
+export USER="root"
+export LOGNAME="root"
+export SHELL="/bin/sh"
+export TERM="linux"
+export HOSTNAME="microos"
+export MICROOS_TERMINAL=1
+
+ESC=$(printf '\033')
+clear
+printf "${ESC}[1;36m"
+printf '+==========================================================+\n'
+printf '|          MicroOS Terminal  v3.0  [Root Shell]           |\n'
+printf '+==========================================================+\n'
+printf "${ESC}[0m"
+printf "${ESC}[1;32mWelcome to MicroOS Terminal!${ESC}[0m\n"
+printf "  Logged in as: ${ESC}[1;33mroot${ESC}[0m\n"
+printf "  Hostname    : ${ESC}[1;33mmicroos${ESC}[0m\n"
+printf "  Kernel      : $(uname -r 2>/dev/null)\n"
+printf "  Uptime      : $(uptime 2>/dev/null)\n"
+printf "\n"
+printf "Quick commands:\n"
+printf "  ${ESC}[1;36mwhoami${ESC}[0m       - show current user\n"
+printf "  ${ESC}[1;36mping <host>${ESC}[0m  - test network connectivity\n"
+printf "  ${ESC}[1;36mifconfig${ESC}[0m     - show network interfaces\n"
+printf "  ${ESC}[1;36mps${ESC}[0m           - list processes\n"
+printf "  ${ESC}[1;36mdf -h${ESC}[0m        - disk usage\n"
+printf "  ${ESC}[1;36mfree${ESC}[0m         - memory usage\n"
+printf "  ${ESC}[1;36muname -a${ESC}[0m     - kernel info\n"
+printf "  ${ESC}[1;36mexit${ESC}[0m          - close terminal\n"
+printf "${ESC}[0;90m--------------------------------------------------------------${ESC}[0m\n"
+
+export PS1="${ESC}[1;32mroot@microos${ESC}[1;34m:${ESC}[1;36m\w${ESC}[1;32m# ${ESC}[0m"
+exec /bin/sh -i

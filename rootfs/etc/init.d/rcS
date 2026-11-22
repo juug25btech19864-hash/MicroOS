@@ -2,6 +2,9 @@
 # MicroOS System Startup (rcS)
 echo "[rcS] Initializing MicroOS environment..."
 
+# Set hostname
+hostname microos 2>/dev/null || echo "microos" > /proc/sys/kernel/hostname
+
 # Seed random generator
 [ -f /dev/urandom ] && dd if=/dev/urandom of=/dev/null count=1 2>/dev/null || true
 
@@ -10,12 +13,19 @@ mkdir -p /run /var/run /var/lib/iwd
 if [ -f /etc/wifi_ssid ]; then
     cp /etc/wifi_ssid /run/wifi.state
 else
-    echo "MOJO-JAN-C1-F9" > /run/wifi.state
+    echo "Jain_Student" > /run/wifi.state
 fi
 
-# Bring up network interface via DHCP
+# Bring up loopback
 ifconfig lo 127.0.0.1 up 2>/dev/null || ip link set lo up 2>/dev/null || true
+
+# Bring up eth0 and get DHCP
 ifconfig eth0 up 2>/dev/null || ip link set eth0 up 2>/dev/null || true
-udhcpc -i eth0 -n -q -t 2 2>/dev/null || true
+udhcpc -i eth0 -n -q -t 3 2>/dev/null || true
+
+# Set up DNS if resolv.conf is empty/missing
+if [ ! -s /etc/resolv.conf ]; then
+    printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf
+fi
 
 echo "[rcS] System ready."

@@ -1,5 +1,8 @@
 root:x:0:
-micro:x:1000:
-audio:x:29:micro
-video:x:44:micro
-wheel:x:10:root,micro
+bin:x:1:
+sys:x:2:
+adm:x:3:root
+tty:x:5:
+disk:x:6:root
+wheel:x:10:root
+users:x:100:

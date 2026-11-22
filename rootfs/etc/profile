@@ -1,55 +1,35 @@
 # /etc/profile for MicroOS v3.0
 # System-wide environment, modern terminal styling, and command aliases
 
-export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games:/mnt/ssd/debian-root/usr/bin"
-export LD_LIBRARY_PATH="/lib:/usr/lib:/lib64:/usr/lib64:/mnt/ssd/debian-root/usr/lib"
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/games"
 export TERMINFO="/etc/terminfo"
 export TERM="${TERM:-linux}"
 export HOME="/root"
-export USER="micro"
+export USER="root"
+export LOGNAME="root"
 export SHELL="/bin/sh"
+export HOSTNAME="microos"
 
-# Modern prompt without broken wrappers (BusyBox ash native)
+# Modern prompt
 ESC=$(printf '\033')
-export PS1="${ESC}[1;36mmicro@micro ${ESC}[1;34m\w ${ESC}[1;32m$ ${ESC}[0m"
+export PS1="${ESC}[1;32mroot@microos${ESC}[1;34m:${ESC}[1;36m\w${ESC}[1;32m# ${ESC}[0m"
 
-# Command Aliases
+# Useful aliases
 alias cls='clear'
 alias ll='ls -la'
 alias la='ls -A'
 alias l='ls -CF'
-alias info='sysinfo'
-alias netinfo='net status'
-alias games='arcade'
+alias info='uname -a'
+alias netinfo='ifconfig'
 alias restart='reboot'
 alias shutdown='poweroff'
-alias control='settings'
-alias umount='unmount'
 alias gui='desktop'
-alias store='snap-store'
-alias snap='snap-store'
 
-# Branded welcome banner on interactive login
-if [ -t 0 ] && [ -z "$MICROOS_INITIALIZED" ]; then
+# Only auto-launch desktop on the FIRST login (not from within terminal app)
+if [ -t 0 ] && [ -z "$MICROOS_INITIALIZED" ] && [ -z "$MICROOS_TERMINAL" ]; then
     export MICROOS_INITIALIZED=1
     printf "${ESC}[H${ESC}[2J"
-    cat <<EOF
-${ESC}[1;36m┌──────────────────────────────────────────────────────────────┐
-│${ESC}[1;37m                           MICROOS                            ${ESC}[1;36m│
-│${ESC}[0;90m               MINIMAL LINUX. MAXIMUM CONTROL.                ${ESC}[1;36m│
-└──────────────────────────────────────────────────────────────┘${ESC}[0m
-
-${ESC}[1;32mWelcome to MicroOS v3.0!${ESC}[0m
-
-  * Type ${ESC}[1;36m'desktop'${ESC}[0m     to launch the macOS / Windows GUI Desktop
-  * Type ${ESC}[1;36m'snap'${ESC}[0m        to launch the MicroOS Snap Software Store
-  * Type ${ESC}[1;36m'wifi'${ESC}[0m        for Wi-Fi management
-  * Type ${ESC}[1;36m'arcade'${ESC}[0m      to play 8 built-in retro terminal games
-
-${ESC}[1;33mStarting MicroOS Desktop...${ESC}[0m
-EOF
-
-    # Auto-launch desktop GUI on every fresh login
+    printf "${ESC}[1;33mStarting MicroOS Desktop...${ESC}[0m\n"
     export DESKTOP_AUTORUN=1
     exec /usr/bin/desktop
 fi
